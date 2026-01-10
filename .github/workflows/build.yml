@@ -24,5 +24,8 @@ jobs:
           distribution: 'temurin'
           cache: sbt
 
+      - name: Check headers and formatting
+        run: sbt headerCheckAll scalafmtCheckAll scalafmtSbtCheck
+
       - name: Run tests
         run: sbt test
