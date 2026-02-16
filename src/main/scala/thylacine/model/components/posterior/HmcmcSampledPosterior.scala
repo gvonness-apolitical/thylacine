@@ -28,8 +28,6 @@ import thylacine.model.sampling.hmcmc.HmcmcEngine
 
 import cats.effect.kernel.Async
 
-import scala.annotation.unused
-
 case class HmcmcSampledPosterior[F[_]: Async](
   private[thylacine] val hmcmcConfig: HmcmcConfig,
   override protected val telemetryUpdateCallback: HmcmcTelemetryUpdate => F[Unit],
@@ -56,10 +54,8 @@ case class HmcmcSampledPosterior[F[_]: Async](
     Async[F].delay(IndexedVectorCollection(seed))
 }
 
-@unused
 object HmcmcSampledPosterior {
 
-  @unused
   def apply[F[_]: Async](
     hmcmcConfig: HmcmcConfig,
     posterior: Posterior[F, Prior[F, ?], Likelihood[F, ?, ?]],

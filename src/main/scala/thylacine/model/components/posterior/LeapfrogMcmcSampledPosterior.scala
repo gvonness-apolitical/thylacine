@@ -31,7 +31,6 @@ import thylacine.model.sampling.leapfrog.LeapfrogMcmcEngine
 import cats.effect.kernel.Async
 import cats.syntax.all.*
 
-import scala.annotation.unused
 import scala.collection.immutable.Queue
 
 case class LeapfrogMcmcSampledPosterior[F[_]: STM: Async](
@@ -65,10 +64,8 @@ case class LeapfrogMcmcSampledPosterior[F[_]: STM: Async](
     Async[F].delay(IndexedVectorCollection(seed))
 }
 
-@unused
 object LeapfrogMcmcSampledPosterior {
 
-  @unused
   def of[F[_]: STM: Async](
     leapfrogMcmcConfig: LeapfrogMcmcConfig,
     distanceCalculation: (Vector[Double], Vector[Double]) => Double,
