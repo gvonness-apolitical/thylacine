@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in Thylacine, please report it responsibly via [GitHub Security Advisories](https://github.com/gvonness-apolitical/thylacine/security/advisories/new).
+If you discover a security vulnerability in Thylacine, please report it responsibly via [GitHub Security Advisories](https://github.com/Entrolution/thylacine/security/advisories/new).
 
 **Do not** open a public issue for security vulnerabilities.
 

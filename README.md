@@ -1,6 +1,6 @@
 # Thylacine
 
-[![CI](https://github.com/gvonness-apolitical/thylacine/actions/workflows/ci.yml/badge.svg)](https://github.com/gvonness-apolitical/thylacine/actions/workflows/ci.yml)
+[![CI](https://github.com/Entrolution/thylacine/actions/workflows/ci.yml/badge.svg)](https://github.com/Entrolution/thylacine/actions/workflows/ci.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/ai.entrolution/thylacine_2.13)](https://central.sonatype.com/artifact/ai.entrolution/thylacine_2.13)
 ![Scala 2.13](https://img.shields.io/badge/Scala-2.13-red?logo=scala)
 ![Scala 3](https://img.shields.io/badge/Scala-3-red?logo=scala)
@@ -116,7 +116,7 @@ object BayesianUpdateExample extends IOApp.Simple {
 
 ## Framework Documentation
 
-API documentation is generated during CI for each Scala version. For questions and discussion, see [GitHub Discussions](https://github.com/gvonness-apolitical/thylacine/discussions).
+API documentation is generated during CI for each Scala version. For questions and discussion, see [GitHub Discussions](https://github.com/Entrolution/thylacine/discussions).
 
 ---
 ---

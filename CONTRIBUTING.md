@@ -4,7 +4,7 @@ Thank you for your interest in contributing to Thylacine! This guide explains ho
 
 ## Reporting Bugs
 
-Open a [GitHub Issue](https://github.com/gvonness-apolitical/thylacine/issues/new?template=bug_report.md) with:
+Open a [GitHub Issue](https://github.com/Entrolution/thylacine/issues/new?template=bug_report.md) with:
 
 - A clear description of the problem
 - Steps to reproduce
@@ -13,7 +13,7 @@ Open a [GitHub Issue](https://github.com/gvonness-apolitical/thylacine/issues/ne
 
 ## Feature Requests
 
-Open a [GitHub Issue](https://github.com/gvonness-apolitical/thylacine/issues/new?template=feature_request.md) describing the motivation and proposed approach.
+Open a [GitHub Issue](https://github.com/Entrolution/thylacine/issues/new?template=feature_request.md) describing the motivation and proposed approach.
 
 ## Development Setup
 
