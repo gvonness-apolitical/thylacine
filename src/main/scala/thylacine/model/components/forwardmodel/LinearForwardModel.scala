@@ -136,7 +136,6 @@ object LinearForwardModel {
     } yield LinearForwardModel[F](evalCache, jacobianCache, transform, vectorOffset, domainDimension, rangeDimension)
   }
 
-  @unused
   private[thylacine] def of[F[_]: STM: Async](
     identifier: ModelParameterIdentifier,
     values: Vector[Vector[Double]],
@@ -159,16 +158,4 @@ object LinearForwardModel {
       evalCacheDepth = evalCacheDepth
     )
 
-  @unused
-  def identityOf[F[_]: STM: Async](
-    label: String,
-    dimension: Int,
-    evalCacheDepth: Option[Int]
-  ): F[LinearForwardModel[F]] =
-    of[F](
-      transform = IndexedMatrixCollection
-        .squareIdentity(ModelParameterIdentifier(label), dimension),
-      vectorOffset   = None,
-      evalCacheDepth = evalCacheDepth
-    )
 }

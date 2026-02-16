@@ -54,13 +54,11 @@ private[thylacine] case class IndexedVectorCollection(
     other: IndexedVectorCollection
   ): IndexedVectorCollection = {
     val keyIntersection = index.keySet.intersect(other.index.keySet)
-    if (keyIntersection.nonEmpty) {
-      throw new RuntimeException(
-        s"Can not merge indexed vector collections with the same labels: $keyIntersection"
-      )
-    } else {
-      IndexedVectorCollection(getValidated.index ++ other.getValidated.index, validated = true)
-    }
+    require(
+      keyIntersection.isEmpty,
+      s"Cannot merge indexed vector collections with overlapping labels: $keyIntersection"
+    )
+    IndexedVectorCollection(getValidated.index ++ other.getValidated.index, validated = true)
   }
 
   private[thylacine] def rawSumWith(

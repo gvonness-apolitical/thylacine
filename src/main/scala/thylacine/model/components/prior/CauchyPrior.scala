@@ -24,8 +24,6 @@ import thylacine.model.distributions.CauchyDistribution
 
 import cats.effect.kernel.Async
 
-import scala.annotation.unused
-
 case class CauchyPrior[F[_]: Async](
   override private[thylacine] val identifier: ModelParameterIdentifier,
   private[thylacine] val priorData: RecordedData,
@@ -44,7 +42,6 @@ case class CauchyPrior[F[_]: Async](
     Async[F].delay(priorDistribution.getRawSample)
 }
 
-@unused
 object CauchyPrior {
 
   def apply[F[_]: Async](

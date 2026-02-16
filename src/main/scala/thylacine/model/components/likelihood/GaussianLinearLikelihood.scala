@@ -28,8 +28,6 @@ import cats.effect.kernel.Async
 import cats.syntax.all.*
 
 import java.util.UUID
-import scala.annotation.unused
-
 // Gaussian linear likelihoods are one of the few likelihoods that can lead to an analytic posterior.
 // Thus, it gets a dedicated case class that is leveraged to do an analytic check in the posterior
 // construction.
@@ -61,7 +59,6 @@ case class GaussianLinearLikelihood[F[_]: Async](
 
 object GaussianLinearLikelihood {
 
-  @unused
   def of[F[_]: STM: Async](
     coefficients: Vector[Vector[Double]],
     measurements: Vector[Double],

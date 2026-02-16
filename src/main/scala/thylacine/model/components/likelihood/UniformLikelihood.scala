@@ -27,8 +27,6 @@ import thylacine.model.distributions.UniformDistribution
 import cats.effect.kernel.Async
 
 import java.util.UUID
-import scala.annotation.unused
-
 case class UniformLikelihood[F[_]: Async, T <: ForwardModel[F]](
   override private[thylacine] val posteriorTermIdentifier: TermIdentifier,
   private[thylacine] val upperBounds: VectorContainer,
@@ -57,7 +55,6 @@ case class UniformLikelihood[F[_]: Async, T <: ForwardModel[F]](
 
 }
 
-@unused
 object UniformLikelihood {
 
   def apply[F[_]: Async, T <: ForwardModel[F]](

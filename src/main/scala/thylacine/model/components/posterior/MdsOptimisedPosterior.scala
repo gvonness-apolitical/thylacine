@@ -26,8 +26,6 @@ import thylacine.model.optimization.mds.MdsEngine
 
 import cats.effect.kernel.Async
 
-import scala.annotation.unused
-
 case class MdsOptimisedPosterior[F[_]: Async](
   private[thylacine] val mdsConfig: MdsConfig,
   override protected val iterationUpdateCallback: OptimisationTelemetryUpdate => F[Unit],
@@ -51,20 +49,4 @@ case class MdsOptimisedPosterior[F[_]: Async](
     mdsConfig.numberOfPriorSamplesToSetStartingPoint.getOrElse(100)
 }
 
-object MdsOptimisedPosterior {
-
-  @unused
-  def apply[F[_]: Async](
-    mdsConfig: MdsConfig,
-    posterior: Posterior[F, Prior[F, ?], Likelihood[F, ?, ?]],
-    iterationUpdateCallback: OptimisationTelemetryUpdate => F[Unit],
-    isConvergedCallback: Unit => F[Unit]
-  ): MdsOptimisedPosterior[F] =
-    MdsOptimisedPosterior(
-      mdsConfig               = mdsConfig,
-      iterationUpdateCallback = iterationUpdateCallback,
-      isConvergedCallback     = isConvergedCallback,
-      priors                  = posterior.priors,
-      likelihoods             = posterior.likelihoods
-    )
-}
+object MdsOptimisedPosterior

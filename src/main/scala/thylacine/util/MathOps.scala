@@ -26,33 +26,30 @@ private[thylacine] object MathOps {
   private[thylacine] def trapezoidalQuadrature(
     abscissa: Vector[Double],
     values: Vector[Double]
-  ): Double =
-    if (abscissa.size == values.size && abscissa.size > 1) {
-      trapezoidalQuadrature(abscissa.zip(values))
-    } else {
-      throw new RuntimeException("Malformed abscissa for trapezoidal quadrature")
-    }
+  ): Double = {
+    require(
+      abscissa.size == values.size && abscissa.size > 1,
+      s"Trapezoidal quadrature requires matching vectors of size > 1, got sizes ${abscissa.size} and ${values.size}"
+    )
+    trapezoidalQuadrature(abscissa.zip(values))
+  }
 
   private[thylacine] def trapezoidalQuadrature(
     graphPoints: Vector[(Double, Double)]
-  ): Double =
-    if (
-      graphPoints.size > 1 && graphPoints
-        .map(_._1)
-        .toSet
-        .size == graphPoints.size
-    ) {
-      val sorted = graphPoints.sortBy(_._1)
-      sorted
-        .dropRight(1)
-        .zip(sorted.tail)
-        .map { graphPointPair =>
-          0.5 * (graphPointPair._1._2 + graphPointPair._2._2) * (graphPointPair._2._1 - graphPointPair._1._1)
-        }
-        .sum
-    } else {
-      throw new RuntimeException("Malformed abscissa for trapezoidal quadrature")
-    }
+  ): Double = {
+    require(
+      graphPoints.size > 1 && graphPoints.map(_._1).toSet.size == graphPoints.size,
+      "Trapezoidal quadrature requires > 1 graph points with unique x-values"
+    )
+    val sorted = graphPoints.sortBy(_._1)
+    sorted
+      .dropRight(1)
+      .zip(sorted.tail)
+      .map { graphPointPair =>
+        0.5 * (graphPointPair._1._2 + graphPointPair._2._2) * (graphPointPair._2._1 - graphPointPair._1._1)
+      }
+      .sum
+  }
 
   // Creates a discretised CDF that facilitates sampling over a
   // discrete set of outcomes via uniform sampling on [0, 1)

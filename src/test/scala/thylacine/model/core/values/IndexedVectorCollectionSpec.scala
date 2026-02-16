@@ -49,7 +49,7 @@ class IndexedVectorCollectionSpec extends AnyFlatSpec with should.Matchers {
   it should "throw on merge with overlapping keys" in {
     val ivc1 = IndexedVectorCollection(Map("foo" -> Vector(1.0)))
     val ivc2 = IndexedVectorCollection(Map("foo" -> Vector(2.0)))
-    a[RuntimeException] should be thrownBy ivc1.rawMergeWith(ivc2)
+    an[IllegalArgumentException] should be thrownBy ivc1.rawMergeWith(ivc2)
   }
 
   it should "sum two collections" in {

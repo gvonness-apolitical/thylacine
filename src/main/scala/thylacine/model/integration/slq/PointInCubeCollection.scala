@@ -26,17 +26,15 @@ private[thylacine] case class PointInCubeCollection(
   validated: Boolean = false
 ) extends CanValidate[PointInCubeCollection] {
   if (!validated) {
-    assert(pointsInCube.size > 1)
+    require(pointsInCube.size > 1, "Collection must contain at least 2 points")
   }
 
   private[thylacine] val dimension: Int =
     pointsInCube.headOption.map(_.dimension).getOrElse(0)
 
   if (!validated) {
-    assert(
-      validated || pointsInCube.size == pointsInCube.map(_.point).toSet.size
-    )
-    assert(validated || pointsInCube.tail.forall(_.dimension == dimension))
+    require(validated || pointsInCube.size == pointsInCube.map(_.point).toSet.size, "All points must be unique")
+    require(validated || pointsInCube.tail.forall(_.dimension == dimension), "All points must have the same dimension")
   }
 
   private[thylacine] lazy val pointsOnly: Vector[VectorContainer] =

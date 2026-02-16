@@ -26,9 +26,9 @@ private[thylacine] case class PointInInterval(
   validated: Boolean = false
 ) extends CanValidate[PointInInterval] {
   if (!validated) {
-    assert(upperBound > lowerBound)
-    assert(point >= lowerBound)
-    assert(point < upperBound)
+    require(upperBound > lowerBound, "Upper bound must exceed lower bound")
+    require(point >= lowerBound, "Point must be >= lower bound")
+    require(point < upperBound, "Point must be < upper bound")
   }
 
   override lazy val getValidated: PointInInterval =
@@ -96,9 +96,7 @@ private[thylacine] object PointInInterval {
       } else if (smallerPii.upperBound > averageBoundary) {
         largerPii.lowerBound
       } else {
-        throw new RuntimeException(
-          "Can't find boundary between cubes that are already disjoint!"
-        )
+        throw new IllegalStateException("Cannot find boundary between cubes that are already disjoint")
       }
 
     if (isPii1Larger) {

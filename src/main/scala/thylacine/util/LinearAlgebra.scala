@@ -39,7 +39,7 @@ private[thylacine] object LinearAlgebra {
   def invert(m: DMatrixRMaj): DMatrixRMaj = {
     val result = new DMatrixRMaj(m.numRows, m.numCols)
     if (!CommonOps_DDRM.invert(m, result)) {
-      throw new RuntimeException("Matrix inversion failed - matrix may be singular")
+      throw new RuntimeException(s"Matrix inversion failed: ${m.numRows}x${m.numCols} matrix may be singular")
     }
     result
   }
@@ -79,7 +79,9 @@ private[thylacine] object LinearAlgebra {
     bMatrix.setData(b)
     val result = new DMatrixRMaj(a.numCols, 1)
     if (!CommonOps_DDRM.solve(a, bMatrix, result)) {
-      throw new RuntimeException("Linear system solve failed")
+      throw new RuntimeException(
+        s"Linear system solve failed: ${a.numRows}x${a.numCols} system with ${b.length}-element RHS"
+      )
     }
     result.getData.take(a.numCols)
   }
@@ -87,7 +89,9 @@ private[thylacine] object LinearAlgebra {
   def solve(a: DMatrixRMaj, b: DMatrixRMaj): DMatrixRMaj = {
     val result = new DMatrixRMaj(a.numCols, b.numCols)
     if (!CommonOps_DDRM.solve(a, b, result)) {
-      throw new RuntimeException("Linear system solve failed")
+      throw new RuntimeException(
+        s"Linear system solve failed: ${a.numRows}x${a.numCols} system with ${b.numRows}x${b.numCols} RHS"
+      )
     }
     result
   }

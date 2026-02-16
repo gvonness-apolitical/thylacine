@@ -30,8 +30,8 @@ private[thylacine] case class GaussianDistribution(
 ) extends Distribution
     with CanValidate[GaussianDistribution] {
   if (!validated) {
-    assert(covariance.rowTotalNumber == covariance.columnTotalNumber)
-    assert(covariance.rowTotalNumber == mean.dimension)
+    require(covariance.rowTotalNumber == covariance.columnTotalNumber, "Covariance matrix must be square")
+    require(covariance.rowTotalNumber == mean.dimension, "Covariance dimension must match mean dimension")
   }
 
   override private[thylacine] lazy val getValidated: GaussianDistribution =

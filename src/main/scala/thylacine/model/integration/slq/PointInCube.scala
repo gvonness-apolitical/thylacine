@@ -50,15 +50,11 @@ private[thylacine] case class PointInCube(
   private[thylacine] def replaceIndex(
     index: Int,
     newInput: PointInInterval
-  ): PointInCube =
-    if (index > 0 && index <= dimension) {
-      val (foreList, aftList) = pointInIntervals.splitAt(index - 1)
-      this.copy(pointInIntervals = foreList ++ List(newInput.getValidated) ++ aftList.tail)
-    } else {
-      throw new RuntimeException(
-        s"Index out of bounds for replacement in PointInCube: $index"
-      )
-    }
+  ): PointInCube = {
+    require(index > 0 && index <= dimension, s"Index $index out of bounds for PointInCube with dimension $dimension")
+    val (foreList, aftList) = pointInIntervals.splitAt(index - 1)
+    this.copy(pointInIntervals = foreList ++ List(newInput.getValidated) ++ aftList.tail)
+  }
 
   private[thylacine] def getSample(scalingParameter: Double): VectorContainer =
     VectorContainer(pointInIntervals.map(_.getSample(scalingParameter)))

@@ -31,8 +31,6 @@ import thylacine.model.integration.slq.*
 import cats.effect.kernel.Async
 import cats.syntax.all.*
 
-import scala.annotation.unused
-
 case class SlqIntegratedPosterior[F[_]: STM: Async](
   private[thylacine] val slqConfig: SlqConfig,
   override protected val slqTelemetryUpdateCallback: SlqTelemetryUpdate => F[Unit],
@@ -72,18 +70,10 @@ case class SlqIntegratedPosterior[F[_]: STM: Async](
 
   final override protected val minIterationCount: Int = slqConfig.minIterationCount
 
-  @unused
-  def rebuildSampleSimulation: F[Unit] =
-    for {
-      _ <- buildSampleSimulation
-      _ <- waitForSimulationConstruction
-    } yield ()
 }
 
-@unused
 object SlqIntegratedPosterior {
 
-  @unused
   def of[F[_]: STM: Async](
     slqConfig: SlqConfig,
     posterior: Posterior[F, Prior[F, ?], Likelihood[F, ?, ?]],

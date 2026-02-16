@@ -34,8 +34,8 @@ private[thylacine] case class UniformDistribution(
     lowerBounds.scalaVector.zip(upperBounds.scalaVector)
 
   if (!validated) {
-    assert(upperBounds.dimension == lowerBounds.dimension)
-    assert(!zippedBounds.exists(i => i._2 <= i._1))
+    require(upperBounds.dimension == lowerBounds.dimension, "Upper and lower bounds must have the same dimension")
+    require(!zippedBounds.exists(i => i._2 <= i._1), "Each upper bound must exceed its corresponding lower bound")
   }
 
   override private[thylacine] lazy val getValidated: UniformDistribution =

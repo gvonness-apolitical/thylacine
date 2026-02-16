@@ -30,8 +30,11 @@ private[thylacine] case class VectorContainer(
 ) extends Container
     with CanValidate[VectorContainer] {
   if (!validated) {
-    assert(values.isEmpty || values.keys.max <= dimension)
-    assert(values.isEmpty || values.keys.min >= 1)
+    require(
+      values.isEmpty || values.keys.max <= dimension,
+      s"Vector index out of bounds: max key ${values.keys.max} exceeds dimension $dimension"
+    )
+    require(values.isEmpty || values.keys.min >= 1, s"Vector index out of bounds: min key ${values.keys.min} < 1")
   }
 
   override private[thylacine] val getValidated: VectorContainer =

@@ -28,8 +28,6 @@ import cats.effect.kernel.Async
 import cats.syntax.all.*
 
 import java.util.UUID
-import scala.annotation.unused
-
 case class CauchyLikelihood[F[_]: Async](
   override private[thylacine] val posteriorTermIdentifier: TermIdentifier,
   private[thylacine] val observations: RecordedData,
@@ -56,7 +54,6 @@ case class CauchyLikelihood[F[_]: Async](
 
 }
 
-@unused
 object CauchyLikelihood {
 
   def apply[F[_]: Async](
@@ -73,7 +70,6 @@ object CauchyLikelihood {
       forwardModel = forwardModel
     )
 
-  @unused
   def of[F[_]: STM: Async](
     coefficients: Vector[Vector[Double]],
     measurements: Vector[Double],

@@ -25,8 +25,6 @@ import cats.effect.Async
 import cats.effect.implicits.*
 import cats.syntax.all.*
 
-import scala.annotation.unused
-
 private[thylacine] trait ModelParameterPdf[F[_]] extends GenericScalarValuedMapping {
   this: AsyncImplicits[F] =>
 
@@ -45,7 +43,6 @@ private[thylacine] trait ModelParameterPdf[F[_]] extends GenericScalarValuedMapp
     input: ModelParameterCollection
   ): F[ModelParameterCollection]
 
-  @unused
   final private[thylacine] def logPdfFiniteDifferenceGradientAt(
     input: ModelParameterCollection,
     differential: Double
@@ -84,7 +81,6 @@ private[thylacine] trait ModelParameterPdf[F[_]] extends GenericScalarValuedMapp
   final def logPdfAt(input: Map[String, Vector[Double]]): F[Double] =
     logPdfAt(IndexedVectorCollection(input))
 
-  @unused
   final def pdfAt(input: Map[String, Vector[Double]]): F[Double] =
     logPdfAt(input).map(Math.exp)
 
@@ -94,7 +90,6 @@ private[thylacine] trait ModelParameterPdf[F[_]] extends GenericScalarValuedMapp
     logPdfGradientAt(IndexedVectorCollection(input))
       .map(_.genericScalaRepresentation)
 
-  @unused
   final def pdfGradientAt(
     input: Map[String, Vector[Double]]
   ): F[Map[String, Vector[Double]]] =

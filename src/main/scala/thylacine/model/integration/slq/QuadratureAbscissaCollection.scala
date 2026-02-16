@@ -20,7 +20,7 @@ package thylacine.model.integration.slq
 private[thylacine] case class QuadratureAbscissaCollection(
   abscissas: Vector[QuadratureAbscissa]
 ) {
-  assert(abscissas.map(_.abscissa.size).toSet.size <= 1)
+  require(abscissas.map(_.abscissa.size).toSet.size <= 1, "All abscissas must have the same size")
 
   private[thylacine] val size: Int =
     if (abscissas.nonEmpty) abscissas.head.abscissa.size else 0

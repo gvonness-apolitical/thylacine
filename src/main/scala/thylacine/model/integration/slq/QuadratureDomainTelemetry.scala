@@ -34,11 +34,15 @@ private[thylacine] case class QuadratureDomainTelemetry(
   rejectionStreak: Int,
   rescalingEnabled: Boolean = false // Do not enable (see comment above)
 ) {
-  assert(
-    currentScaleFactor >= Double.MinPositiveValue && currentScaleFactor <= 1.0
+  require(
+    currentScaleFactor >= Double.MinPositiveValue && currentScaleFactor <= 1.0,
+    s"Scale factor must be in (0, 1], got $currentScaleFactor"
   )
 
-  // TODO: Is there a way to rigorously define this?
+  // Convergence heuristic: after 100k consecutive sample rejections, the integration
+  // domain is considered exhausted. A rigorous statistical convergence criterion
+  // (e.g., variance stabilisation or dimension-scaled thresholds) would be more
+  // principled but is not implemented.
   private[thylacine] lazy val isConverged: Boolean = rejectionStreak >= 100000
 
   private[thylacine] lazy val resetForRebuild: QuadratureDomainTelemetry =

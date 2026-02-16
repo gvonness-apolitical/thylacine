@@ -35,7 +35,7 @@ private[thylacine] object SamplingSimulation {
     final override private[thylacine] val isConstructed: Boolean = false
 
     final override private[thylacine] def getSample: ModelParameterCollection =
-      throw new RuntimeException("Sampling simulation not constructed yet!")
+      throw new IllegalStateException("Sampling simulation not yet constructed")
   }
 
   private[thylacine] case class SamplingSimulationConstructed(

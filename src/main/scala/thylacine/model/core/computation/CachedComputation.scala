@@ -27,8 +27,6 @@ import cats.effect.implicits.*
 import cats.effect.kernel.Async
 import cats.syntax.all.*
 
-import scala.annotation.unused
-
 case class CachedComputation[F[_]: STM: Async, T](
   computation: ModelParameterCollection => T,
   cacheDepth: Option[Int] = None
@@ -154,7 +152,6 @@ case class CachedComputation[F[_]: STM: Async, T](
 
 object CachedComputation {
 
-  @unused
   def of[F[_]: STM: Async, T](
     computation: ModelParameterCollection => T,
     cacheDepth: Option[Int] = None

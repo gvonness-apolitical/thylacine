@@ -25,8 +25,8 @@ private[thylacine] case class RecordedData(
   validated: Boolean = false
 ) extends CanValidate[RecordedData] {
   if (!validated) {
-    assert(covariance.rowTotalNumber == covariance.columnTotalNumber)
-    assert(data.dimension == covariance.rowTotalNumber)
+    require(covariance.rowTotalNumber == covariance.columnTotalNumber, "Covariance matrix must be square")
+    require(data.dimension == covariance.rowTotalNumber, "Data dimension must match covariance dimension")
   }
 
   private[thylacine] val dimension: Int = data.dimension
@@ -53,8 +53,11 @@ private[thylacine] object RecordedData {
     val validatedConfidenceIntervals: VectorContainer =
       symmetricConfidenceIntervals.getValidated
 
-    assert(validatedValues.dimension == validatedConfidenceIntervals.dimension)
-    assert(validatedConfidenceIntervals.values.values.forall(_ > 0))
+    require(
+      validatedValues.dimension == validatedConfidenceIntervals.dimension,
+      "Values and confidence intervals must have the same dimension"
+    )
+    require(validatedConfidenceIntervals.values.values.forall(_ > 0), "All confidence intervals must be positive")
 
     RecordedData(
       data = validatedValues,

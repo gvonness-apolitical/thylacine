@@ -23,8 +23,6 @@ import thylacine.model.core.values.IndexedVectorCollection.ModelParameterCollect
 
 import cats.syntax.all.*
 
-import scala.annotation.unused
-
 trait ModelParameterOptimizer[F[_]] {
   this: AsyncImplicits[F] =>
 
@@ -37,7 +35,4 @@ trait ModelParameterOptimizer[F[_]] {
       (bestLogPdf, argMax.genericScalaRepresentation)
     }
 
-  @unused
-  final def findMaximumPdf(startPt: Map[String, Vector[Double]]): F[(Double, Map[String, Vector[Double]])] =
-    findMaximumLogPdf(startPt).map(i => (Math.exp(i._1), i._2))
 }

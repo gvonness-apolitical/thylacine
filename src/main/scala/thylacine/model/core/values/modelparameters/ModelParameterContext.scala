@@ -21,8 +21,6 @@ import thylacine.model.core.GenericIdentifier.ModelParameterIdentifier
 import thylacine.model.core.values.IndexedVectorCollection.ModelParameterCollection
 import thylacine.model.core.values.{ IndexedVectorCollection, VectorContainer }
 
-import scala.annotation.unused
-
 private[thylacine] trait ModelParameterContext {
   private[thylacine] def orderedParameterIdentifiersWithDimension: Vector[(ModelParameterIdentifier, Int)]
 
@@ -32,10 +30,6 @@ private[thylacine] trait ModelParameterContext {
         .mapValues(VectorContainer.zeros)
         .toMap
     )
-
-  @unused
-  final def zeroParameterMapping: Map[String, Vector[Double]] =
-    zeroModelParameterCollection.genericScalaRepresentation
 
   final private[thylacine] def rawVectorToModelParameterCollection(
     input: Array[Double]

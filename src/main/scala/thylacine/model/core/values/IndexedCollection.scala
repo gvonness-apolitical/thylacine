@@ -25,8 +25,6 @@ private[thylacine] trait IndexedCollection[T <: Container] {
   private[thylacine] def retrieveIndex(identifier: ModelParameterIdentifier): T =
     index.getOrElse(
       identifier,
-      throw new RuntimeException(
-        s"Identifier $identifier not found in indexed collection: $index"
-      )
+      throw new NoSuchElementException(s"Identifier $identifier not found in indexed collection")
     )
 }

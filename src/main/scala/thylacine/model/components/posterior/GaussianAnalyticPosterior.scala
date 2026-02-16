@@ -164,7 +164,9 @@ object GaussianAnalyticPosterior {
 
         new MultivariateGaussianDistribution(newMean, LinearAlgebra.toArray2D(symmetricCovariance))
       }).getOrElse(
-        throw new RuntimeException("Can't create posterior Gaussian distribution: A term is missing")
+        throw new IllegalStateException(
+          "Cannot create posterior Gaussian distribution: required prior or likelihood term is missing"
+        )
       )
 
     private[thylacine] def add(

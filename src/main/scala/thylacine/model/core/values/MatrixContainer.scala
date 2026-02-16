@@ -31,10 +31,16 @@ private[thylacine] case class MatrixContainer(
 ) extends Container
     with CanValidate[MatrixContainer] {
   if (!validated) {
-    assert(values.keys.map(_._1).max <= rowTotalNumber)
-    assert(values.keys.map(_._1).min >= 1)
-    assert(values.keys.map(_._2).max <= columnTotalNumber)
-    assert(values.keys.map(_._2).min >= 1)
+    require(
+      values.keys.map(_._1).max <= rowTotalNumber,
+      s"Row index out of bounds: max ${values.keys.map(_._1).max} exceeds $rowTotalNumber"
+    )
+    require(values.keys.map(_._1).min >= 1, s"Row index out of bounds: min ${values.keys.map(_._1).min} < 1")
+    require(
+      values.keys.map(_._2).max <= columnTotalNumber,
+      s"Column index out of bounds: max ${values.keys.map(_._2).max} exceeds $columnTotalNumber"
+    )
+    require(values.keys.map(_._2).min >= 1, s"Column index out of bounds: min ${values.keys.map(_._2).min} < 1")
   }
 
   override private[thylacine] lazy val getValidated: MatrixContainer =
