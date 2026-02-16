@@ -99,162 +99,198 @@ class LeapfrogMcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec wi
   "LeapfrogMcmcSampledPosterior" - {
 
     "produce samples near the known posterior mean" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        sampler <- build2dSampler(lightConfig, euclidean, noOpSetCallback, noOpUpdateCallback)
-        samples <- sampler.sample(5).timeout(120.seconds)
-        sampleList = samples.toList
-        mean0      = sampleList.map(_("p").head).sum / sampleList.size
-        mean1      = sampleList.map(_("p")(1)).sum / sampleList.size
-      } yield (mean0, mean1)).asserting { case (m0, m1) =>
-        m0 shouldBe (1.0 +- 5.0)
-        m1 shouldBe (2.0 +- 5.0)
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            sampler <- build2dSampler(lightConfig, euclidean, noOpSetCallback, noOpUpdateCallback)
+            samples <- sampler.sample(5).timeout(120.seconds)
+            sampleList = samples.toList
+            mean0      = sampleList.map(_("p").head).sum / sampleList.size
+            mean1      = sampleList.map(_("p")(1)).sum / sampleList.size
+          } yield (mean0, mean1)
+        }
+        .asserting { case (m0, m1) =>
+          m0 shouldBe (1.0 +- 5.0)
+          m1 shouldBe (2.0 +- 5.0)
+        }
     }
 
     "produce samples from a simple 1D posterior" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        prior1d = GaussianPrior.fromConfidenceIntervals[IO](
-                    label               = "x",
-                    values              = Vector(0.0),
-                    confidenceIntervals = Vector(10.0)
-                  )
-        likelihood1d <- GaussianLinearLikelihood.of[IO](
-                          coefficients   = Vector(Vector(1.0)),
-                          measurements   = Vector(3.0),
-                          uncertainties  = Vector(1.0),
-                          priorLabel     = "x",
-                          evalCacheDepth = None
-                        )
-        posterior1d = UnnormalisedPosterior[IO](
-                        priors      = Set[Prior[IO, ?]](prior1d),
-                        likelihoods = Set[Likelihood[IO, ?, ?]](likelihood1d)
-                      )
-        sampler <- LeapfrogMcmcSampledPosterior.of[IO](
-                     leapfrogMcmcConfig          = lightConfig,
-                     distanceCalculation         = euclidean,
-                     posterior                   = posterior1d,
-                     sampleRequestSetCallback    = noOpSetCallback,
-                     sampleRequestUpdateCallback = noOpUpdateCallback,
-                     seed                        = Map("x" -> Vector(3.0))
-                   )
-        samples <- sampler.sample(5).timeout(120.seconds)
-        sampleList = samples.toList
-        mean       = sampleList.map(_("x").head).sum / sampleList.size
-      } yield mean).asserting { m =>
-        m shouldBe (3.0 +- 5.0)
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          val prior1d = GaussianPrior.fromConfidenceIntervals[IO](
+            label               = "x",
+            values              = Vector(0.0),
+            confidenceIntervals = Vector(10.0)
+          )
+          for {
+            likelihood1d <- GaussianLinearLikelihood.of[IO](
+                              coefficients   = Vector(Vector(1.0)),
+                              measurements   = Vector(3.0),
+                              uncertainties  = Vector(1.0),
+                              priorLabel     = "x",
+                              evalCacheDepth = None
+                            )
+            posterior1d = UnnormalisedPosterior[IO](
+                            priors      = Set[Prior[IO, ?]](prior1d),
+                            likelihoods = Set[Likelihood[IO, ?, ?]](likelihood1d)
+                          )
+            sampler <- LeapfrogMcmcSampledPosterior.of[IO](
+                         leapfrogMcmcConfig          = lightConfig,
+                         distanceCalculation         = euclidean,
+                         posterior                   = posterior1d,
+                         sampleRequestSetCallback    = noOpSetCallback,
+                         sampleRequestUpdateCallback = noOpUpdateCallback,
+                         seed                        = Map("x" -> Vector(3.0))
+                       )
+            samples <- sampler.sample(5).timeout(120.seconds)
+            sampleList = samples.toList
+            mean       = sampleList.map(_("x").head).sum / sampleList.size
+          } yield mean
+        }
+        .asserting { m =>
+          m shouldBe (3.0 +- 5.0)
+        }
     }
 
     "produce samples from a 3D posterior" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        prior3d = GaussianPrior.fromConfidenceIntervals[IO](
-                    label               = "v",
-                    values              = Vector.fill(3)(0.0),
-                    confidenceIntervals = Vector.fill(3)(10.0)
-                  )
-        likelihood3d <- GaussianLinearLikelihood.of[IO](
-                          coefficients =
-                            (0 until 3).map(i => (0 until 3).map(j => if (i == j) 1.0 else 0.0).toVector).toVector,
-                          measurements   = Vector(1.0, 2.0, 3.0),
-                          uncertainties  = Vector.fill(3)(1.0),
-                          priorLabel     = "v",
-                          evalCacheDepth = None
-                        )
-        posterior3d = UnnormalisedPosterior[IO](
-                        priors      = Set[Prior[IO, ?]](prior3d),
-                        likelihoods = Set[Likelihood[IO, ?, ?]](likelihood3d)
-                      )
-        sampler <- LeapfrogMcmcSampledPosterior.of[IO](
-                     leapfrogMcmcConfig          = lightConfig,
-                     distanceCalculation         = euclidean,
-                     posterior                   = posterior3d,
-                     sampleRequestSetCallback    = noOpSetCallback,
-                     sampleRequestUpdateCallback = noOpUpdateCallback,
-                     seed                        = Map("v" -> Vector(1.0, 2.0, 3.0))
-                   )
-        samples <- sampler.sample(5).timeout(120.seconds)
-      } yield samples).asserting { samples =>
-        samples should not be empty
-        // Each sample should have a 3-element vector for label "v"
-        samples.foreach(s => s("v") should have size 3)
-        succeed
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          val prior3d = GaussianPrior.fromConfidenceIntervals[IO](
+            label               = "v",
+            values              = Vector.fill(3)(0.0),
+            confidenceIntervals = Vector.fill(3)(10.0)
+          )
+          for {
+            likelihood3d <- GaussianLinearLikelihood.of[IO](
+                              coefficients =
+                                (0 until 3).map(i => (0 until 3).map(j => if (i == j) 1.0 else 0.0).toVector).toVector,
+                              measurements   = Vector(1.0, 2.0, 3.0),
+                              uncertainties  = Vector.fill(3)(1.0),
+                              priorLabel     = "v",
+                              evalCacheDepth = None
+                            )
+            posterior3d = UnnormalisedPosterior[IO](
+                            priors      = Set[Prior[IO, ?]](prior3d),
+                            likelihoods = Set[Likelihood[IO, ?, ?]](likelihood3d)
+                          )
+            sampler <- LeapfrogMcmcSampledPosterior.of[IO](
+                         leapfrogMcmcConfig          = lightConfig,
+                         distanceCalculation         = euclidean,
+                         posterior                   = posterior3d,
+                         sampleRequestSetCallback    = noOpSetCallback,
+                         sampleRequestUpdateCallback = noOpUpdateCallback,
+                         seed                        = Map("v" -> Vector(1.0, 2.0, 3.0))
+                       )
+            samples <- sampler.sample(5).timeout(120.seconds)
+          } yield samples
+        }
+        .asserting { samples =>
+          samples should not be empty
+          // Each sample should have a 3-element vector for label "v"
+          samples.foreach(s => s("v") should have size 3)
+          succeed
+        }
     }
 
     "produce samples with reasonable spread" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        sampler <- build2dSampler(lightConfig, euclidean, noOpSetCallback, noOpUpdateCallback)
-        samples <- sampler.sample(5).timeout(120.seconds)
-        sampleList = samples.toList
-        values0    = sampleList.map(_("p").head)
-        values1    = sampleList.map(_("p")(1))
-        mean0      = values0.sum / values0.size
-        mean1      = values1.sum / values1.size
-        std0       = Math.sqrt(values0.map(v => (v - mean0) * (v - mean0)).sum / values0.size)
-        std1       = Math.sqrt(values1.map(v => (v - mean1) * (v - mean1)).sum / values1.size)
-      } yield (std0, std1)).asserting { case (s0, s1) =>
-        s0 should be > 0.01
-        s0 should be < 10.0
-        s1 should be > 0.01
-        s1 should be < 10.0
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            sampler <- build2dSampler(lightConfig, euclidean, noOpSetCallback, noOpUpdateCallback)
+            samples <- sampler.sample(5).timeout(120.seconds)
+            sampleList = samples.toList
+            values0    = sampleList.map(_("p").head)
+            values1    = sampleList.map(_("p")(1))
+            mean0      = values0.sum / values0.size
+            mean1      = values1.sum / values1.size
+            std0       = Math.sqrt(values0.map(v => (v - mean0) * (v - mean0)).sum / values0.size)
+            std1       = Math.sqrt(values1.map(v => (v - mean1) * (v - mean1)).sum / values1.size)
+          } yield (std0, std1)
+        }
+        .asserting { case (s0, s1) =>
+          s0 should be > 0.01
+          s0 should be < 10.0
+          s1 should be > 0.01
+          s1 should be < 10.0
+        }
     }
 
     "produce distinct samples" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        sampler <- build2dSampler(lightConfig, euclidean, noOpSetCallback, noOpUpdateCallback)
-        samples <- sampler.sample(5).timeout(120.seconds)
-      } yield samples.size).asserting { size =>
-        size should be > 1
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            sampler <- build2dSampler(lightConfig, euclidean, noOpSetCallback, noOpUpdateCallback)
+            samples <- sampler.sample(5).timeout(120.seconds)
+          } yield samples.size
+        }
+        .asserting { size =>
+          size should be > 1
+        }
     }
 
     "use a provided seed as starting point" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        sampler <- build2dSampler(lightConfig, euclidean, noOpSetCallback, noOpUpdateCallback)
-        samples <- sampler.sample(5).timeout(120.seconds)
-      } yield samples).asserting { samples =>
-        samples should not be empty
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            sampler <- build2dSampler(lightConfig, euclidean, noOpSetCallback, noOpUpdateCallback)
+            samples <- sampler.sample(5).timeout(120.seconds)
+          } yield samples
+        }
+        .asserting { samples =>
+          samples should not be empty
+        }
     }
 
     "invoke sample request callbacks during sampling" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        ref <- Ref.of[IO, List[Int]](List.empty)
-        setCallback = (n: Int) => ref.update(n :: _)
-        sampler <- build2dSampler(lightConfig, euclidean, setCallback, noOpUpdateCallback)
-        _       <- sampler.sample(5).timeout(120.seconds)
-        calls   <- ref.get
-      } yield calls).asserting { calls =>
-        calls should not be empty
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            ref <- Ref.of[IO, List[Int]](List.empty)
+            setCallback = (n: Int) => ref.update(n :: _)
+            sampler <- build2dSampler(lightConfig, euclidean, setCallback, noOpUpdateCallback)
+            _       <- sampler.sample(5).timeout(120.seconds)
+            calls   <- ref.get
+          } yield calls
+        }
+        .asserting { calls =>
+          calls should not be empty
+        }
     }
 
     "work with Manhattan distance function" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        sampler <- build2dSampler(lightConfig, manhattan, noOpSetCallback, noOpUpdateCallback)
-        samples <- sampler.sample(5).timeout(120.seconds)
-      } yield samples).asserting { samples =>
-        samples should not be empty
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            sampler <- build2dSampler(lightConfig, manhattan, noOpSetCallback, noOpUpdateCallback)
+            samples <- sampler.sample(5).timeout(120.seconds)
+          } yield samples
+        }
+        .asserting { samples =>
+          samples should not be empty
+        }
     }
 
     "work with a larger sample pool" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        sampler <- build2dSampler(largePoolConfig, euclidean, noOpSetCallback, noOpUpdateCallback)
-        samples <- sampler.sample(5).timeout(120.seconds)
-      } yield samples).asserting { samples =>
-        samples should not be empty
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            sampler <- build2dSampler(largePoolConfig, euclidean, noOpSetCallback, noOpUpdateCallback)
+            samples <- sampler.sample(5).timeout(120.seconds)
+          } yield samples
+        }
+        .asserting { samples =>
+          samples should not be empty
+        }
     }
   }
 }

@@ -21,5 +21,4 @@ import bengal.stm.STM
 
 import cats.effect.kernel.Async
 
-abstract class StmImplicits[F[_]](implicit protected val stmF: STM[F], implicit override protected val asyncF: Async[F])
-    extends AsyncImplicits[F]
+abstract class StmImplicits[F[_]](implicit val stmF: STM[F], override val asyncF: Async[F]) extends AsyncImplicits[F]

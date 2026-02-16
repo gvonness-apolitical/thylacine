@@ -45,31 +45,40 @@ class UniformLikelihoodSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers
   "UniformLikelihood" - {
 
     "return finite logPdf when forward model output is inside bounds" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- uniformLikelihoodF
-        result     <- likelihood.logPdfAt(IndexedVectorCollection(Map("x" -> Vector(2.0))))
-      } yield result)
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- uniformLikelihoodF
+            result     <- likelihood.logPdfAt(IndexedVectorCollection(Map("x" -> Vector(2.0))))
+          } yield result
+        }
         .asserting { r =>
           r shouldBe (-Math.log(5.0) +- 1e-8)
         }
     }
 
     "return negative infinity logPdf when forward model output is outside bounds" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- uniformLikelihoodF
-        result     <- likelihood.logPdfAt(IndexedVectorCollection(Map("x" -> Vector(6.0))))
-      } yield result)
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- uniformLikelihoodF
+            result     <- likelihood.logPdfAt(IndexedVectorCollection(Map("x" -> Vector(6.0))))
+          } yield result
+        }
         .asserting(_ shouldBe Double.NegativeInfinity)
     }
 
     "return zero gradient inside bounds" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- uniformLikelihoodF
-        result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("x" -> Vector(2.0))))
-      } yield result.genericScalaRepresentation)
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- uniformLikelihoodF
+            result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("x" -> Vector(2.0))))
+          } yield result.genericScalaRepresentation
+        }
         .asserting(_ shouldBe Map("x" -> Vector(0.0)))
     }
   }

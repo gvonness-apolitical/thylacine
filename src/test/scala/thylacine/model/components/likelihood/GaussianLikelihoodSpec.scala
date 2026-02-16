@@ -31,20 +31,26 @@ class GaussianLikelihoodSpec extends AsyncFreeSpec with AsyncIOSpec with Matcher
   "GaussianLikelihood" - {
 
     "generate the a zero gradient at the likelihood maximum" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- fooNonAnalyticLikelihoodF
-        result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("foo" -> Vector(1d, 2d))))
-      } yield result.genericScalaRepresentation)
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- fooNonAnalyticLikelihoodF
+            result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("foo" -> Vector(1d, 2d))))
+          } yield result.genericScalaRepresentation
+        }
         .asserting(_ shouldBe Map("foo" -> Vector(0d, 0d)))
     }
 
     "generate the correct gradient of the logPdf for a given point" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- fooNonAnalyticLikelihoodF
-        result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("foo" -> Vector(3d, 2d))))
-      } yield result.genericScalaRepresentation)
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- fooNonAnalyticLikelihoodF
+            result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("foo" -> Vector(3d, 2d))))
+          } yield result.genericScalaRepresentation
+        }
         .asserting(result => maxIndexVectorDiff(result, Map("foo" -> Vector(-4e5, -88e4))) shouldBe (0d +- 1e-4))
     }
 
@@ -52,21 +58,25 @@ class GaussianLikelihoodSpec extends AsyncFreeSpec with AsyncIOSpec with Matcher
     "match gradient against finite differences" in {
       val testPoint = Map("foo" -> Vector(1.5, 2.5))
       val eps       = 1e-7
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- fooNonAnalyticLikelihoodF
-        grad       <- likelihood.logPdfGradientAt(IndexedVectorCollection(testPoint))
-        logPdf0    <- likelihood.logPdfAt(IndexedVectorCollection(testPoint))
-        logPdfN0 <- likelihood.logPdfAt(
-                      IndexedVectorCollection(Map("foo" -> Vector(1.5 + eps, 2.5)))
-                    )
-        logPdfN1 <- likelihood.logPdfAt(
-                      IndexedVectorCollection(Map("foo" -> Vector(1.5, 2.5 + eps)))
-                    )
-      } yield {
-        val fdGrad = Map("foo" -> Vector((logPdfN0 - logPdf0) / eps, (logPdfN1 - logPdf0) / eps))
-        maxIndexVectorDiff(grad.genericScalaRepresentation, fdGrad)
-      }).asserting(_ shouldBe (0.0 +- 0.1))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- fooNonAnalyticLikelihoodF
+            grad       <- likelihood.logPdfGradientAt(IndexedVectorCollection(testPoint))
+            logPdf0    <- likelihood.logPdfAt(IndexedVectorCollection(testPoint))
+            logPdfN0 <- likelihood.logPdfAt(
+                          IndexedVectorCollection(Map("foo" -> Vector(1.5 + eps, 2.5)))
+                        )
+            logPdfN1 <- likelihood.logPdfAt(
+                          IndexedVectorCollection(Map("foo" -> Vector(1.5, 2.5 + eps)))
+                        )
+          } yield {
+            val fdGrad = Map("foo" -> Vector((logPdfN0 - logPdf0) / eps, (logPdfN1 - logPdf0) / eps))
+            maxIndexVectorDiff(grad.genericScalaRepresentation, fdGrad)
+          }
+        }
+        .asserting(_ shouldBe (0.0 +- 0.1))
     }
   }
 }

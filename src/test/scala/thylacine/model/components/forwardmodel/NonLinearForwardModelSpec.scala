@@ -43,54 +43,64 @@ class NonLinearForwardModelSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
   "NonLinearForwardModel" - {
 
     "evaluate a nonlinear function correctly" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        model <- NonLinearForwardModel.of[IO](
-                   evaluation         = nonlinearEval,
-                   differential       = 1e-7,
-                   domainDimensions   = Map("x" -> 2),
-                   rangeDimension     = 2,
-                   evalCacheDepth     = None,
-                   jacobianCacheDepth = None
-                 )
-        result <- model.evalAt(IndexedVectorCollection(Map("x" -> Vector(2.0, 3.0))))
-      } yield maxVectorDiff(result.scalaVector, Vector(4.0, 6.0)))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            model <- NonLinearForwardModel.of[IO](
+                       evaluation         = nonlinearEval,
+                       differential       = 1e-7,
+                       domainDimensions   = Map("x" -> 2),
+                       rangeDimension     = 2,
+                       evalCacheDepth     = None,
+                       jacobianCacheDepth = None
+                     )
+            result <- model.evalAt(IndexedVectorCollection(Map("x" -> Vector(2.0, 3.0))))
+          } yield maxVectorDiff(result.scalaVector, Vector(4.0, 6.0))
+        }
         .asserting(_ shouldBe (0.0 +- 1e-10))
     }
 
     "compute finite-difference Jacobian close to analytical" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        model <- NonLinearForwardModel.of[IO](
-                   evaluation         = nonlinearEval,
-                   differential       = 1e-7,
-                   domainDimensions   = Map("x" -> 2),
-                   rangeDimension     = 2,
-                   evalCacheDepth     = None,
-                   jacobianCacheDepth = None
-                 )
-        jac <- model.jacobianAt(IndexedVectorCollection(Map("x" -> Vector(2.0, 3.0))))
-      } yield {
-        val jacMatrix = jac.genericScalaRepresentation("x")
-        // Expected: [[4, 0], [3, 2]]
-        val expected = Vector(Vector(4.0, 0.0), Vector(3.0, 2.0))
-        maxMatrixDiff(jacMatrix, expected)
-      }).asserting(_ shouldBe (0.0 +- 1e-3))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            model <- NonLinearForwardModel.of[IO](
+                       evaluation         = nonlinearEval,
+                       differential       = 1e-7,
+                       domainDimensions   = Map("x" -> 2),
+                       rangeDimension     = 2,
+                       evalCacheDepth     = None,
+                       jacobianCacheDepth = None
+                     )
+            jac <- model.jacobianAt(IndexedVectorCollection(Map("x" -> Vector(2.0, 3.0))))
+          } yield {
+            val jacMatrix = jac.genericScalaRepresentation("x")
+            // Expected: [[4, 0], [3, 2]]
+            val expected = Vector(Vector(4.0, 0.0), Vector(3.0, 2.0))
+            maxMatrixDiff(jacMatrix, expected)
+          }
+        }
+        .asserting(_ shouldBe (0.0 +- 1e-3))
     }
 
     "use user-provided analytical Jacobian when given" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        model <- NonLinearForwardModel.of[IO](
-                   evaluation         = nonlinearEval,
-                   jacobian           = analyticJacobian,
-                   domainDimensions   = Map("x" -> 2),
-                   rangeDimension     = 2,
-                   evalCacheDepth     = None,
-                   jacobianCacheDepth = None
-                 )
-        jac <- model.jacobianAt(IndexedVectorCollection(Map("x" -> Vector(2.0, 3.0))))
-      } yield jac.genericScalaRepresentation("x"))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            model <- NonLinearForwardModel.of[IO](
+                       evaluation         = nonlinearEval,
+                       jacobian           = analyticJacobian,
+                       domainDimensions   = Map("x" -> 2),
+                       rangeDimension     = 2,
+                       evalCacheDepth     = None,
+                       jacobianCacheDepth = None
+                     )
+            jac <- model.jacobianAt(IndexedVectorCollection(Map("x" -> Vector(2.0, 3.0))))
+          } yield jac.genericScalaRepresentation("x")
+        }
         .asserting(_ shouldBe Vector(Vector(4.0, 0.0), Vector(3.0, 2.0)))
     }
   }

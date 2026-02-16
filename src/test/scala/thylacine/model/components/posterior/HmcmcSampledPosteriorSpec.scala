@@ -72,210 +72,242 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
   "HmcmcSampledPosterior" - {
 
     "produce samples near the known posterior mean" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- mcmcLikelihoodF
-        sampler = HmcmcSampledPosterior[IO](
-                    hmcmcConfig             = standardConfig,
-                    telemetryUpdateCallback = noOpCallback,
-                    seed                    = Map("p" -> Vector(1.0, 2.0)),
-                    priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                    likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                  )
-        samples <- sampler.sample(15)
-        sampleList = samples.toList
-        mean0      = sampleList.map(_("p").head).sum / sampleList.size
-        mean1      = sampleList.map(_("p")(1)).sum / sampleList.size
-      } yield (mean0, mean1)).asserting { case (m0, m1) =>
-        m0 shouldBe (1.0 +- 2.0)
-        m1 shouldBe (2.0 +- 2.0)
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- mcmcLikelihoodF
+            sampler = HmcmcSampledPosterior[IO](
+                        hmcmcConfig             = standardConfig,
+                        telemetryUpdateCallback = noOpCallback,
+                        seed                    = Map("p" -> Vector(1.0, 2.0)),
+                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                      )
+            samples <- sampler.sample(15)
+            sampleList = samples.toList
+            mean0      = sampleList.map(_("p").head).sum / sampleList.size
+            mean1      = sampleList.map(_("p")(1)).sum / sampleList.size
+          } yield (mean0, mean1)
+        }
+        .asserting { case (m0, m1) =>
+          m0 shouldBe (1.0 +- 2.0)
+          m1 shouldBe (2.0 +- 2.0)
+        }
     }
 
     "produce samples from a simple 1D posterior" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        prior1d = GaussianPrior.fromConfidenceIntervals[IO](
-                    label               = "x",
-                    values              = Vector(0.0),
-                    confidenceIntervals = Vector(10.0)
-                  )
-        likelihood1d <- GaussianLinearLikelihood.of[IO](
-                          coefficients   = Vector(Vector(1.0)),
-                          measurements   = Vector(3.0),
-                          uncertainties  = Vector(1.0),
-                          priorLabel     = "x",
-                          evalCacheDepth = None
-                        )
-        sampler = HmcmcSampledPosterior[IO](
-                    hmcmcConfig             = standardConfig,
-                    telemetryUpdateCallback = noOpCallback,
-                    seed                    = Map("x" -> Vector(3.0)),
-                    priors                  = Set[Prior[IO, ?]](prior1d),
-                    likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood1d)
-                  )
-        samples <- sampler.sample(15)
-        sampleList = samples.toList
-        mean       = sampleList.map(_("x").head).sum / sampleList.size
-      } yield mean).asserting { m =>
-        m shouldBe (3.0 +- 2.0)
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          val prior1d = GaussianPrior.fromConfidenceIntervals[IO](
+            label               = "x",
+            values              = Vector(0.0),
+            confidenceIntervals = Vector(10.0)
+          )
+          for {
+            likelihood1d <- GaussianLinearLikelihood.of[IO](
+                              coefficients   = Vector(Vector(1.0)),
+                              measurements   = Vector(3.0),
+                              uncertainties  = Vector(1.0),
+                              priorLabel     = "x",
+                              evalCacheDepth = None
+                            )
+            sampler = HmcmcSampledPosterior[IO](
+                        hmcmcConfig             = standardConfig,
+                        telemetryUpdateCallback = noOpCallback,
+                        seed                    = Map("x" -> Vector(3.0)),
+                        priors                  = Set[Prior[IO, ?]](prior1d),
+                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood1d)
+                      )
+            samples <- sampler.sample(15)
+            sampleList = samples.toList
+            mean       = sampleList.map(_("x").head).sum / sampleList.size
+          } yield mean
+        }
+        .asserting { m =>
+          m shouldBe (3.0 +- 2.0)
+        }
     }
 
     "produce samples with reasonable spread" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- mcmcLikelihoodF
-        sampler = HmcmcSampledPosterior[IO](
-                    hmcmcConfig             = standardConfig,
-                    telemetryUpdateCallback = noOpCallback,
-                    seed                    = Map("p" -> Vector(1.0, 2.0)),
-                    priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                    likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                  )
-        samples <- sampler.sample(15)
-        sampleList = samples.toList
-        values0    = sampleList.map(_("p").head)
-        values1    = sampleList.map(_("p")(1))
-        mean0      = values0.sum / values0.size
-        mean1      = values1.sum / values1.size
-        std0       = Math.sqrt(values0.map(v => (v - mean0) * (v - mean0)).sum / values0.size)
-        std1       = Math.sqrt(values1.map(v => (v - mean1) * (v - mean1)).sum / values1.size)
-      } yield (std0, std1)).asserting { case (s0, s1) =>
-        s0 should be > 0.01
-        s0 should be < 5.0
-        s1 should be > 0.01
-        s1 should be < 5.0
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- mcmcLikelihoodF
+            sampler = HmcmcSampledPosterior[IO](
+                        hmcmcConfig             = standardConfig,
+                        telemetryUpdateCallback = noOpCallback,
+                        seed                    = Map("p" -> Vector(1.0, 2.0)),
+                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                      )
+            samples <- sampler.sample(15)
+            sampleList = samples.toList
+            values0    = sampleList.map(_("p").head)
+            values1    = sampleList.map(_("p")(1))
+            mean0      = values0.sum / values0.size
+            mean1      = values1.sum / values1.size
+            std0       = Math.sqrt(values0.map(v => (v - mean0) * (v - mean0)).sum / values0.size)
+            std1       = Math.sqrt(values1.map(v => (v - mean1) * (v - mean1)).sum / values1.size)
+          } yield (std0, std1)
+        }
+        .asserting { case (s0, s1) =>
+          s0 should be > 0.01
+          s0 should be < 5.0
+          s1 should be > 0.01
+          s1 should be < 5.0
+        }
     }
 
     "maintain a reasonable acceptance rate" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        ref <- Ref.of[IO, List[HmcmcTelemetryUpdate]](List.empty)
-        callback = (update: HmcmcTelemetryUpdate) => ref.update(update :: _)
-        likelihood <- mcmcLikelihoodF
-        sampler = HmcmcSampledPosterior[IO](
-                    hmcmcConfig             = standardConfig,
-                    telemetryUpdateCallback = callback,
-                    seed                    = Map("p" -> Vector(1.0, 2.0)),
-                    priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                    likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                  )
-        _       <- sampler.sample(15)
-        updates <- ref.get
-        lastUpdate     = updates.maxBy(_.jumpAttempts)
-        acceptanceRate = lastUpdate.jumpAcceptances.toDouble / lastUpdate.jumpAttempts
-      } yield acceptanceRate).asserting { rate =>
-        rate should be > 0.1
-        rate should be <= 1.0
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            ref <- Ref.of[IO, List[HmcmcTelemetryUpdate]](List.empty)
+            callback = (update: HmcmcTelemetryUpdate) => ref.update(update :: _)
+            likelihood <- mcmcLikelihoodF
+            sampler = HmcmcSampledPosterior[IO](
+                        hmcmcConfig             = standardConfig,
+                        telemetryUpdateCallback = callback,
+                        seed                    = Map("p" -> Vector(1.0, 2.0)),
+                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                      )
+            _       <- sampler.sample(15)
+            updates <- ref.get
+            lastUpdate     = updates.maxBy(_.jumpAttempts)
+            acceptanceRate = lastUpdate.jumpAcceptances.toDouble / lastUpdate.jumpAttempts
+          } yield acceptanceRate
+        }
+        .asserting { rate =>
+          rate should be > 0.1
+          rate should be <= 1.0
+        }
     }
 
     "produce distinct samples" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- mcmcLikelihoodF
-        sampler = HmcmcSampledPosterior[IO](
-                    hmcmcConfig             = lightConfig,
-                    telemetryUpdateCallback = noOpCallback,
-                    seed                    = Map("p" -> Vector(1.0, 2.0)),
-                    priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                    likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                  )
-        samples <- sampler.sample(5)
-      } yield samples.size).asserting { size =>
-        size should be > 1
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- mcmcLikelihoodF
+            sampler = HmcmcSampledPosterior[IO](
+                        hmcmcConfig             = lightConfig,
+                        telemetryUpdateCallback = noOpCallback,
+                        seed                    = Map("p" -> Vector(1.0, 2.0)),
+                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                      )
+            samples <- sampler.sample(5)
+          } yield samples.size
+        }
+        .asserting { size =>
+          size should be > 1
+        }
     }
 
     "use a provided seed as starting point" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- mcmcLikelihoodF
-        sampler = HmcmcSampledPosterior[IO](
-                    hmcmcConfig             = lightConfig,
-                    telemetryUpdateCallback = noOpCallback,
-                    seed                    = Map("p" -> Vector(1.0, 2.0)),
-                    priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                    likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                  )
-        samples <- sampler.sample(5)
-      } yield samples).asserting { samples =>
-        samples should not be empty
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- mcmcLikelihoodF
+            sampler = HmcmcSampledPosterior[IO](
+                        hmcmcConfig             = lightConfig,
+                        telemetryUpdateCallback = noOpCallback,
+                        seed                    = Map("p" -> Vector(1.0, 2.0)),
+                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                      )
+            samples <- sampler.sample(5)
+          } yield samples
+        }
+        .asserting { samples =>
+          samples should not be empty
+        }
     }
 
     "be constructable via the companion object factory" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        // Build an UnnormalisedPosterior with MCMC-friendly widths
-        prior = GaussianPrior.fromConfidenceIntervals[IO](
-                  label               = "q",
-                  values              = Vector(0.0),
-                  confidenceIntervals = Vector(10.0)
-                )
-        likelihood <- GaussianLinearLikelihood.of[IO](
-                        coefficients   = Vector(Vector(1.0)),
-                        measurements   = Vector(5.0),
-                        uncertainties  = Vector(1.0),
-                        priorLabel     = "q",
-                        evalCacheDepth = None
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          // Build an UnnormalisedPosterior with MCMC-friendly widths
+          val prior = GaussianPrior.fromConfidenceIntervals[IO](
+            label               = "q",
+            values              = Vector(0.0),
+            confidenceIntervals = Vector(10.0)
+          )
+          for {
+            likelihood <- GaussianLinearLikelihood.of[IO](
+                            coefficients   = Vector(Vector(1.0)),
+                            measurements   = Vector(5.0),
+                            uncertainties  = Vector(1.0),
+                            priorLabel     = "q",
+                            evalCacheDepth = None
+                          )
+            unnormalisedPosterior = UnnormalisedPosterior[IO](
+                                      priors      = Set[Prior[IO, ?]](prior),
+                                      likelihoods = Set[Likelihood[IO, ?, ?]](likelihood)
+                                    )
+            sampler = HmcmcSampledPosterior[IO](
+                        hmcmcConfig             = lightConfig,
+                        posterior               = unnormalisedPosterior,
+                        telemetryUpdateCallback = noOpCallback,
+                        seed                    = Map("q" -> Vector(5.0))
                       )
-        unnormalisedPosterior = UnnormalisedPosterior[IO](
-                                  priors      = Set[Prior[IO, ?]](prior),
-                                  likelihoods = Set[Likelihood[IO, ?, ?]](likelihood)
-                                )
-        sampler = HmcmcSampledPosterior[IO](
-                    hmcmcConfig             = lightConfig,
-                    posterior               = unnormalisedPosterior,
-                    telemetryUpdateCallback = noOpCallback,
-                    seed                    = Map("q" -> Vector(5.0))
-                  )
-        samples <- sampler.sample(3)
-      } yield samples).asserting { samples =>
-        samples should not be empty
-      }
+            samples <- sampler.sample(3)
+          } yield samples
+        }
+        .asserting { samples =>
+          samples should not be empty
+        }
     }
 
     "produce sample covariance in a reasonable range" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- mcmcLikelihoodF
-        sampler = HmcmcSampledPosterior[IO](
-                    hmcmcConfig = HmcmcConfig(
-                      stepsBetweenSamples        = 2,
-                      stepsInDynamicsSimulation  = 10,
-                      warmupStepCount            = 10,
-                      dynamicsSimulationStepSize = 0.05
-                    ),
-                    telemetryUpdateCallback = noOpCallback,
-                    seed                    = Map("p" -> Vector(1.0, 2.0)),
-                    priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                    likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                  )
-        samples <- sampler.sample(30)
-        sampleList = samples.toList
-        values0    = sampleList.map(_("p").head)
-        values1    = sampleList.map(_("p")(1))
-        mean0      = values0.sum / values0.size
-        mean1      = values1.sum / values1.size
-        var0       = values0.map(v => (v - mean0) * (v - mean0)).sum / (values0.size - 1)
-        var1       = values1.map(v => (v - mean1) * (v - mean1)).sum / (values1.size - 1)
-        cov01 = values0
-                  .zip(values1)
-                  .map { case (v0, v1) => (v0 - mean0) * (v1 - mean1) }
-                  .sum / (values0.size - 1)
-        correlation = cov01 / Math.sqrt(var0 * var1)
-      } yield (var0, var1, correlation)).asserting { case (v0, v1, corr) =>
-        // True posterior variance ≈ 0.25 (per dimension). Check order of magnitude.
-        v0 should be > 0.01
-        v0 should be < 3.0
-        v1 should be > 0.01
-        v1 should be < 3.0
-        // Independent dimensions → low correlation
-        Math.abs(corr) should be < 0.8
-      }
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- mcmcLikelihoodF
+            sampler = HmcmcSampledPosterior[IO](
+                        hmcmcConfig = HmcmcConfig(
+                          stepsBetweenSamples        = 2,
+                          stepsInDynamicsSimulation  = 10,
+                          warmupStepCount            = 10,
+                          dynamicsSimulationStepSize = 0.05
+                        ),
+                        telemetryUpdateCallback = noOpCallback,
+                        seed                    = Map("p" -> Vector(1.0, 2.0)),
+                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                      )
+            samples <- sampler.sample(30)
+            sampleList = samples.toList
+            values0    = sampleList.map(_("p").head)
+            values1    = sampleList.map(_("p")(1))
+            mean0      = values0.sum / values0.size
+            mean1      = values1.sum / values1.size
+            var0       = values0.map(v => (v - mean0) * (v - mean0)).sum / (values0.size - 1)
+            var1       = values1.map(v => (v - mean1) * (v - mean1)).sum / (values1.size - 1)
+            cov01 = values0
+                      .zip(values1)
+                      .map { case (v0, v1) => (v0 - mean0) * (v1 - mean1) }
+                      .sum / (values0.size - 1)
+            correlation = cov01 / Math.sqrt(var0 * var1)
+          } yield (var0, var1, correlation)
+        }
+        .asserting { case (v0, v1, corr) =>
+          // True posterior variance ≈ 0.25 (per dimension). Check order of magnitude.
+          v0 should be > 0.01
+          v0 should be < 3.0
+          v1 should be > 0.01
+          v1 should be < 3.0
+          // Independent dimensions → low correlation
+          Math.abs(corr) should be < 0.8
+        }
     }
   }
 }

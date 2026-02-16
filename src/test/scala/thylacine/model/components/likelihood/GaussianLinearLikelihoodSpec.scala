@@ -30,20 +30,26 @@ class GaussianLinearLikelihoodSpec extends AsyncFreeSpec with AsyncIOSpec with M
   "GaussianLinearLikelihood" - {
 
     "generate the a zero gradient at the likelihood maximum" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- fooLikelihoodF
-        result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("foo" -> Vector(1d, 2d))))
-      } yield result.genericScalaRepresentation)
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- fooLikelihoodF
+            result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("foo" -> Vector(1d, 2d))))
+          } yield result.genericScalaRepresentation
+        }
         .asserting(_ shouldBe Map("foo" -> Vector(0d, 0d)))
     }
 
     "generate the correct gradient of the logPdf for a given point" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- fooLikelihoodF
-        result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("foo" -> Vector(3d, 2d))))
-      } yield result.genericScalaRepresentation)
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- fooLikelihoodF
+            result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("foo" -> Vector(3d, 2d))))
+          } yield result.genericScalaRepresentation
+        }
         .asserting(_ shouldBe Map("foo" -> Vector(-4e5, -88e4)))
     }
 
@@ -51,11 +57,14 @@ class GaussianLinearLikelihoodSpec extends AsyncFreeSpec with AsyncIOSpec with M
     // J=[[1,3],[2,4]], Σ_obs^(-1)=diag(40000,40000), data=(7,10)
     // = [[1,2],[3,4]] * (280000, 400000) = (1080000, 2440000)
     "generate the correct gradient at a second non-trivial point" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        likelihood <- fooLikelihoodF
-        result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("foo" -> Vector(0d, 0d))))
-      } yield result.genericScalaRepresentation)
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- fooLikelihoodF
+            result     <- likelihood.logPdfGradientAt(IndexedVectorCollection(Map("foo" -> Vector(0d, 0d))))
+          } yield result.genericScalaRepresentation
+        }
         .asserting(_ shouldBe Map("foo" -> Vector(108e4, 244e4)))
     }
   }

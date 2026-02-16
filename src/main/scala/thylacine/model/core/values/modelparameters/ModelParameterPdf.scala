@@ -61,7 +61,7 @@ private[thylacine] trait ModelParameterPdf[F[_]] extends GenericScalarValuedMapp
                               VectorContainer(finiteDifferenceResults.toVector)
                             )
                           }
-      result <- Async[F].delay(componentResults.reduce(_ rawMergeWith _))
+      result <- Async[F].delay(componentResults.reduce(_.rawMergeWith(_)))
     } yield result
 
   // Will work most of the time but will require
@@ -76,7 +76,7 @@ private[thylacine] trait ModelParameterPdf[F[_]] extends GenericScalarValuedMapp
       .map { gl =>
         IndexedVectorCollection(gl._1, VectorContainer(gl._2.rawVector.map(_ * pdf)))
       }
-      .reduce(_ rawMergeWith _)
+      .reduce(_.rawMergeWith(_))
 
   final def logPdfAt(input: Map[String, Vector[Double]]): F[Double] =
     logPdfAt(IndexedVectorCollection(input))

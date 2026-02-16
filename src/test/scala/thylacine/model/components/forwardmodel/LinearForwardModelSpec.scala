@@ -31,65 +31,77 @@ class LinearForwardModelSpec extends AsyncFreeSpec with AsyncIOSpec with Matcher
   "LinearForwardModel" - {
 
     "evaluate A*x correctly" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        model <- LinearForwardModel.of[IO](
-                   label          = "p",
-                   values         = Vector(Vector(1.0, 3.0), Vector(2.0, 4.0)),
-                   evalCacheDepth = None
-                 )
-        result <- model.evalAt(IndexedVectorCollection(Map("p" -> Vector(1.0, 2.0))))
-      } yield maxVectorDiff(result.scalaVector, Vector(7.0, 10.0)))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            model <- LinearForwardModel.of[IO](
+                       label          = "p",
+                       values         = Vector(Vector(1.0, 3.0), Vector(2.0, 4.0)),
+                       evalCacheDepth = None
+                     )
+            result <- model.evalAt(IndexedVectorCollection(Map("p" -> Vector(1.0, 2.0))))
+          } yield maxVectorDiff(result.scalaVector, Vector(7.0, 10.0))
+        }
         .asserting(_ shouldBe (0.0 +- 1e-10))
     }
 
     "evaluate A*x + b correctly with offset" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        model <- LinearForwardModel.of[IO](
-                   transform = IndexedMatrixCollection(
-                     ModelParameterIdentifier("p"),
-                     Vector(Vector(1.0, 0.0), Vector(0.0, 1.0))
-                   ),
-                   vectorOffset   = Some(VectorContainer(Vector(1.0, 2.0))),
-                   evalCacheDepth = None
-                 )
-        result <- model.evalAt(IndexedVectorCollection(Map("p" -> Vector(3.0, 4.0))))
-      } yield maxVectorDiff(result.scalaVector, Vector(4.0, 6.0)))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            model <- LinearForwardModel.of[IO](
+                       transform = IndexedMatrixCollection(
+                         ModelParameterIdentifier("p"),
+                         Vector(Vector(1.0, 0.0), Vector(0.0, 1.0))
+                       ),
+                       vectorOffset   = Some(VectorContainer(Vector(1.0, 2.0))),
+                       evalCacheDepth = None
+                     )
+            result <- model.evalAt(IndexedVectorCollection(Map("p" -> Vector(3.0, 4.0))))
+          } yield maxVectorDiff(result.scalaVector, Vector(4.0, 6.0))
+        }
         .asserting(_ shouldBe (0.0 +- 1e-10))
     }
 
     "return the transform matrix as the Jacobian" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        model <- LinearForwardModel.of[IO](
-                   label          = "p",
-                   values         = Vector(Vector(1.0, 3.0), Vector(2.0, 4.0)),
-                   evalCacheDepth = None
-                 )
-        jac <- model.jacobianAt(IndexedVectorCollection(Map("p" -> Vector(99.0, -42.0))))
-      } yield jac.genericScalaRepresentation)
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            model <- LinearForwardModel.of[IO](
+                       label          = "p",
+                       values         = Vector(Vector(1.0, 3.0), Vector(2.0, 4.0)),
+                       evalCacheDepth = None
+                     )
+            jac <- model.jacobianAt(IndexedVectorCollection(Map("p" -> Vector(99.0, -42.0))))
+          } yield jac.genericScalaRepresentation
+        }
         .asserting(_ shouldBe Map("p" -> Vector(Vector(1.0, 3.0), Vector(2.0, 4.0))))
     }
 
     "handle multi-block parameters" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        model <- LinearForwardModel.of[IO](
-                   transform = IndexedMatrixCollection(
-                     Map(
-                       ModelParameterIdentifier("a") -> thylacine.model.core.values
-                         .MatrixContainer(Vector(Vector(1.0), Vector(0.0))),
-                       ModelParameterIdentifier("b") -> thylacine.model.core.values
-                         .MatrixContainer(Vector(Vector(0.0), Vector(1.0)))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            model <- LinearForwardModel.of[IO](
+                       transform = IndexedMatrixCollection(
+                         Map(
+                           ModelParameterIdentifier("a") -> thylacine.model.core.values
+                             .MatrixContainer(Vector(Vector(1.0), Vector(0.0))),
+                           ModelParameterIdentifier("b") -> thylacine.model.core.values
+                             .MatrixContainer(Vector(Vector(0.0), Vector(1.0)))
+                         )
+                       ),
+                       vectorOffset   = None,
+                       evalCacheDepth = None
                      )
-                   ),
-                   vectorOffset   = None,
-                   evalCacheDepth = None
-                 )
-        result <- model.evalAt(IndexedVectorCollection(Map("a" -> Vector(3.0), "b" -> Vector(4.0))))
-        jac    <- model.jacobianAt(IndexedVectorCollection(Map("a" -> Vector(3.0), "b" -> Vector(4.0))))
-      } yield (result.scalaVector, jac.genericScalaRepresentation))
+            result <- model.evalAt(IndexedVectorCollection(Map("a" -> Vector(3.0), "b" -> Vector(4.0))))
+            jac    <- model.jacobianAt(IndexedVectorCollection(Map("a" -> Vector(3.0), "b" -> Vector(4.0))))
+          } yield (result.scalaVector, jac.genericScalaRepresentation)
+        }
         .asserting { case (eval, jac) =>
           maxVectorDiff(eval, Vector(3.0, 4.0)) shouldBe (0.0 +- 1e-10)
           jac("a") shouldBe Vector(Vector(1.0), Vector(0.0))

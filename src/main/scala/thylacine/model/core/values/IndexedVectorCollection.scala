@@ -70,7 +70,7 @@ private[thylacine] case class IndexedVectorCollection(
       keySet.flatMap { k =>
         (getValidated.index.get(k), other.getValidated.index.get(k)) match {
           case (Some(v1), Some(v2)) =>
-            Some(k -> (v1 rawSumWith v2))
+            Some(k -> v1.rawSumWith(v2))
           case (Some(v1), _) =>
             Some(k -> v1)
           case (_, Some(v2)) =>
@@ -145,7 +145,7 @@ private[thylacine] object IndexedVectorCollection {
     labeledLists: Map[String, Vector[Double]]
   ): IndexedVectorCollection =
     if (labeledLists.nonEmpty)
-      labeledLists.map(i => apply(i._1, i._2)).reduce(_ rawMergeWith _)
+      labeledLists.map(i => apply(i._1, i._2)).reduce(_.rawMergeWith(_))
     else
       empty
 }

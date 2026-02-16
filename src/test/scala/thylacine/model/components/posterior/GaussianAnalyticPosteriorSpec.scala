@@ -34,10 +34,13 @@ class GaussianAnalyticPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with 
     // Unfortunately, the analytic solution has a number of matrix inversions
     // that chip away at the numerical accuracy of the result
     "generate the correct mean for the inference" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        posterior <- analyticPosteriorF
-      } yield maxIndexVectorDiff(posterior.mean, Map("foo" -> Vector(1, 2), "bar" -> Vector(5))))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            posterior <- analyticPosteriorF
+          } yield maxIndexVectorDiff(posterior.mean, Map("foo" -> Vector(1, 2), "bar" -> Vector(5)))
+        }
         .asserting(_ shouldBe (0d +- .1))
     }
 
@@ -45,35 +48,42 @@ class GaussianAnalyticPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with 
     // on the inference for the parameters (i.e. all uncertainties should
     // be very small)
     "generate the correct covariance" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        posterior <- analyticPosteriorF
-      } yield maxVectorDiff(posterior.covarianceStridedVector, Vector.fill(9)(0d))).asserting(_ shouldBe (0.0 +- .01))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            posterior <- analyticPosteriorF
+          } yield maxVectorDiff(posterior.covarianceStridedVector, Vector.fill(9)(0d))
+        }
+        .asserting(_ shouldBe (0.0 +- .01))
     }
 
     // 1D Bayesian update: N(0,1) prior + y=x with y_obs=2, σ_obs²=1
     // σ_post² = 1/(1+1) = 0.5, μ_post = 0.5*(0+2) = 1.0
     "compute correct 1D Bayesian update" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        prior = GaussianPrior.fromConfidenceIntervals[IO](
-                  label               = "x",
-                  values              = Vector(0.0),
-                  confidenceIntervals = Vector(2.0) // variance = 1
-                )
-        likelihood <- GaussianLinearLikelihood.of[IO](
-                        coefficients   = Vector(Vector(1.0)),
-                        measurements   = Vector(2.0),
-                        uncertainties  = Vector(2.0), // variance = 1
-                        priorLabel     = "x",
-                        evalCacheDepth = None
-                      )
-        posterior = GaussianAnalyticPosterior[IO](
-                      priors      = Set(prior),
-                      likelihoods = Set(likelihood)
-                    )
-        _ <- posterior.init
-      } yield (posterior.mean, posterior.covarianceStridedVector))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          val prior = GaussianPrior.fromConfidenceIntervals[IO](
+            label               = "x",
+            values              = Vector(0.0),
+            confidenceIntervals = Vector(2.0) // variance = 1
+          )
+          for {
+            likelihood <- GaussianLinearLikelihood.of[IO](
+                            coefficients   = Vector(Vector(1.0)),
+                            measurements   = Vector(2.0),
+                            uncertainties  = Vector(2.0), // variance = 1
+                            priorLabel     = "x",
+                            evalCacheDepth = None
+                          )
+            posterior = GaussianAnalyticPosterior[IO](
+                          priors      = Set(prior),
+                          likelihoods = Set(likelihood)
+                        )
+            _ <- posterior.init
+          } yield (posterior.mean, posterior.covarianceStridedVector)
+        }
         .asserting { case (mean, cov) =>
           maxIndexVectorDiff(mean, Map("x" -> Vector(1.0))) shouldBe (0.0 +- 1e-6)
           maxVectorDiff(cov, Vector(0.5)) shouldBe (0.0 +- 1e-6)

@@ -21,6 +21,7 @@ import thylacine.model.core.values.{ MatrixContainer, VectorContainer }
 import thylacine.model.core.{ CanValidate, RecordedData }
 import thylacine.util.LinearAlgebra
 
+import smile.math.matrix.Matrix
 import smile.math.special.Gamma.gamma
 import smile.stat.distribution.{ ChiSquareDistribution, MultivariateGaussianDistribution }
 
@@ -77,7 +78,7 @@ private[thylacine] case class CauchyDistribution(
   private[thylacine] def getRawSample: VectorContainer = {
     val scaledCovariance = LinearAlgebra.divide(covariance.rawMatrix, chiSquared.rand())
     val scaledCovArray   = LinearAlgebra.toArray2D(scaledCovariance)
-    val mvn              = new MultivariateGaussianDistribution(mean.rawVector, scaledCovArray)
+    val mvn              = new MultivariateGaussianDistribution(mean.rawVector, Matrix.of(scaledCovArray))
     VectorContainer(mvn.rand())
   }
 

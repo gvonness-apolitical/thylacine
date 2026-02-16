@@ -76,11 +76,14 @@ class PosteriorGradientSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers
     // Likelihood y: 1*(1/4)*(3-0) = 0.75
     // Total: x → 0+2=2, y → 0.25+0.75=1.0
     "equal sum of prior and likelihood gradients" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        posterior <- posteriorF
-        grad      <- posterior.logPdfGradientAt(IndexedVectorCollection(Map("x" -> Vector(0.0), "y" -> Vector(0.0))))
-      } yield grad.genericScalaRepresentation)
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            posterior <- posteriorF
+            grad <- posterior.logPdfGradientAt(IndexedVectorCollection(Map("x" -> Vector(0.0), "y" -> Vector(0.0))))
+          } yield grad.genericScalaRepresentation
+        }
         .asserting { g =>
           maxIndexVectorDiff(g, Map("x" -> Vector(2.0), "y" -> Vector(1.0))) shouldBe (0.0 +- 1e-8)
         }
@@ -89,21 +92,25 @@ class PosteriorGradientSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers
     "match gradient via finite differences" in {
       val testPoint = Map("x" -> Vector(0.5), "y" -> Vector(1.5))
       val eps       = 1e-7
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        posterior <- posteriorF
-        grad      <- posterior.logPdfGradientAt(IndexedVectorCollection(testPoint))
-        logPdf0   <- posterior.logPdfAt(IndexedVectorCollection(testPoint))
-        logPdfNx <- posterior.logPdfAt(
-                      IndexedVectorCollection(Map("x" -> Vector(0.5 + eps), "y" -> Vector(1.5)))
-                    )
-        logPdfNy <- posterior.logPdfAt(
-                      IndexedVectorCollection(Map("x" -> Vector(0.5), "y" -> Vector(1.5 + eps)))
-                    )
-      } yield {
-        val fdGrad = Map("x" -> Vector((logPdfNx - logPdf0) / eps), "y" -> Vector((logPdfNy - logPdf0) / eps))
-        maxIndexVectorDiff(grad.genericScalaRepresentation, fdGrad)
-      }).asserting(_ shouldBe (0.0 +- 1e-5))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            posterior <- posteriorF
+            grad      <- posterior.logPdfGradientAt(IndexedVectorCollection(testPoint))
+            logPdf0   <- posterior.logPdfAt(IndexedVectorCollection(testPoint))
+            logPdfNx <- posterior.logPdfAt(
+                          IndexedVectorCollection(Map("x" -> Vector(0.5 + eps), "y" -> Vector(1.5)))
+                        )
+            logPdfNy <- posterior.logPdfAt(
+                          IndexedVectorCollection(Map("x" -> Vector(0.5), "y" -> Vector(1.5 + eps)))
+                        )
+          } yield {
+            val fdGrad = Map("x" -> Vector((logPdfNx - logPdf0) / eps), "y" -> Vector((logPdfNy - logPdf0) / eps))
+            maxIndexVectorDiff(grad.genericScalaRepresentation, fdGrad)
+          }
+        }
+        .asserting(_ shouldBe (0.0 +- 1e-5))
     }
   }
 }

@@ -27,5 +27,5 @@ private[thylacine] object GenericIdentifier {
   private[thylacine] case class TermIdentifier(value: String) extends GenericIdentifier
 
   implicit private[thylacine] def orderByValue[T <: GenericIdentifier]: Ordering[T] =
-    Ordering.fromLessThan((i, j) => (i.value compareTo j.value) < 0)
+    Ordering.fromLessThan((i, j) => i.value.compareTo(j.value) < 0)
 }

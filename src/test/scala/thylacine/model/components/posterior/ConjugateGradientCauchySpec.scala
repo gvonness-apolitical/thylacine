@@ -43,32 +43,35 @@ class ConjugateGradientCauchySpec extends AsyncFreeSpec with AsyncIOSpec with Ma
   "ConjugateGradientOptimisedPosterior with Cauchy prior" - {
 
     "converge to the correct value after gradient fix" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        cauchyPrior = CauchyPrior[IO](
-                        label               = "x",
-                        values              = Vector(0.0),
-                        confidenceIntervals = Vector(2.0)
-                      )
-        likelihood <- GaussianLinearLikelihood.of[IO](
-                        coefficients   = Vector(Vector(1.0)),
-                        measurements   = Vector(3.0),
-                        uncertainties  = Vector(0.01),
-                        priorLabel     = "x",
-                        evalCacheDepth = None
-                      )
-        unnormalisedPosterior = UnnormalisedPosterior[IO](
-                                  priors      = Set[Prior[IO, ?]](cauchyPrior),
-                                  likelihoods = Set[Likelihood[IO, ?, ?]](likelihood)
-                                )
-        optimizer = ConjugateGradientOptimisedPosterior[IO](
-                      conjugateGradientConfig = cgConfig,
-                      posterior               = unnormalisedPosterior,
-                      iterationUpdateCallback = _ => IO.unit,
-                      isConvergedCallback     = _ => IO.unit
-                    )
-        result <- optimizer.findMaximumLogPdf(Map("x" -> Vector(0.0)))
-      } yield maxIndexVectorDiff(result._2, Map("x" -> Vector(3.0))))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          val cauchyPrior = CauchyPrior[IO](
+            label               = "x",
+            values              = Vector(0.0),
+            confidenceIntervals = Vector(2.0)
+          )
+          for {
+            likelihood <- GaussianLinearLikelihood.of[IO](
+                            coefficients   = Vector(Vector(1.0)),
+                            measurements   = Vector(3.0),
+                            uncertainties  = Vector(0.01),
+                            priorLabel     = "x",
+                            evalCacheDepth = None
+                          )
+            unnormalisedPosterior = UnnormalisedPosterior[IO](
+                                      priors      = Set[Prior[IO, ?]](cauchyPrior),
+                                      likelihoods = Set[Likelihood[IO, ?, ?]](likelihood)
+                                    )
+            optimizer = ConjugateGradientOptimisedPosterior[IO](
+                          conjugateGradientConfig = cgConfig,
+                          posterior               = unnormalisedPosterior,
+                          iterationUpdateCallback = _ => IO.unit,
+                          isConvergedCallback     = _ => IO.unit
+                        )
+            result <- optimizer.findMaximumLogPdf(Map("x" -> Vector(0.0)))
+          } yield maxIndexVectorDiff(result._2, Map("x" -> Vector(3.0)))
+        }
         .asserting(_ shouldBe (0.0 +- 0.1))
     }
   }

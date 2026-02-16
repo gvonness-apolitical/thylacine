@@ -29,12 +29,15 @@ import org.scalatest.matchers.should.Matchers
 class ConjugateGradientOptimisedPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   "ConjugateGradientOptimisedPosterior" - {
     "find the parameters that correspond to the posterior maximum" in {
-      (for {
-        case implicit0(stm: STM[IO]) <- STM.runtime[IO]
-        posterior <- conjugateGradientOptimisedPosteriorF
-        optimisationResult <-
-          posterior.findMaximumLogPdf(Map("fooniform" -> Vector(.5d, .5d), "barniform" -> Vector(3d)))
-      } yield maxIndexVectorDiff(optimisationResult._2, Map("fooniform" -> Vector(1, 2), "barniform" -> Vector(5))))
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            posterior <- conjugateGradientOptimisedPosteriorF
+            optimisationResult <-
+              posterior.findMaximumLogPdf(Map("fooniform" -> Vector(.5d, .5d), "barniform" -> Vector(3d)))
+          } yield maxIndexVectorDiff(optimisationResult._2, Map("fooniform" -> Vector(1, 2), "barniform" -> Vector(5)))
+        }
         .asserting(_ shouldBe (0.0 +- 1e-1))
     }
   }

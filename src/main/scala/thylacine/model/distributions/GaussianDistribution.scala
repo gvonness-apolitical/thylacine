@@ -21,6 +21,7 @@ import thylacine.model.core.values.{ MatrixContainer, VectorContainer }
 import thylacine.model.core.{ CanValidate, RecordedData }
 import thylacine.util.LinearAlgebra
 
+import smile.math.matrix.Matrix
 import smile.stat.distribution.MultivariateGaussianDistribution
 
 private[thylacine] case class GaussianDistribution(
@@ -45,7 +46,10 @@ private[thylacine] case class GaussianDistribution(
 
   // Low-level API
   private[thylacine] lazy val rawDistribution: MultivariateGaussianDistribution =
-    new MultivariateGaussianDistribution(mean.rawVector, covariance.genericScalaRepresentation.map(_.toArray).toArray)
+    new MultivariateGaussianDistribution(
+      mean.rawVector,
+      Matrix.of(covariance.genericScalaRepresentation.map(_.toArray).toArray)
+    )
 
   private lazy val rawInverseCovariance =
     LinearAlgebra.invert(covariance.rawMatrix)

@@ -65,5 +65,5 @@ trait Likelihood[F[_], +FM <: ForwardModel[F], +D <: Distribution]
           VectorContainer(LinearAlgebra.multiplyMV(jacobianTranspose, measGrad.rawVector))
         )
       }
-      .reduce(_ rawMergeWith _)
+      .reduce(_.rawMergeWith(_))
 }
