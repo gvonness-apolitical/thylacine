@@ -17,6 +17,8 @@
 package ai.entrolution
 package thylacine.model.integration.slq
 
+import thylacine.util.MathOps
+
 import scala.annotation.tailrec
 
 // Mutable structure, as our quadratures may contain a large number
@@ -53,7 +55,7 @@ private[thylacine] object QuadratureAbscissa {
 
   @tailrec
   private def getNext(max: Double, existing: Set[Double]): Double = {
-    val candidate: Double = Math.random() * max
+    val candidate: Double = MathOps.nextDouble * max
     if (!existing.contains(candidate)) {
       candidate
     } else {

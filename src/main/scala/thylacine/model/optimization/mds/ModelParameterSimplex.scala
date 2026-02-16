@@ -51,7 +51,10 @@ private[thylacine] case class ModelParameterSimplex(
         }
         ._1
 
-    assert(!(isRegular ^ distancesAllEqual))
+    require(
+      !(isRegular ^ distancesAllEqual),
+      "Simplex regularity flag is inconsistent with computed vertex distances"
+    )
   }
 
   override private[thylacine] lazy val getValidated: ModelParameterSimplex =

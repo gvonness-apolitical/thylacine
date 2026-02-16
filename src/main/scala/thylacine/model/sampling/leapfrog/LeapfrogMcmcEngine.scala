@@ -35,7 +35,6 @@ import cats.effect.kernel.Async
 import cats.syntax.all.*
 
 import scala.collection.immutable.Queue
-import scala.util.Random
 
 /** Leapfrog MCMC algorithm.
   */
@@ -115,12 +114,12 @@ private[thylacine] trait LeapfrogMcmcEngine[F[_]] extends ModelParameterSampler[
   // generation. I.e. this would still reduce down to synchronous computation.
   private val generateProposal: F[(Boolean, Int)] =
     for {
-      sampleIndex           <- Async[F].delay(Random.nextInt(samplePoolSize))
+      sampleIndex           <- Async[F].delay(MathOps.nextInt(samplePoolSize))
       allDistances          <- interSampleDistanceCalculationResults.get.commit
       distanceCalculations  <- Async[F].delay(allDistances(sampleIndex))
       samples               <- samplePool.get.commit
       staircase             <- Async[F].delay(MathOps.vectorCdfStaircase(distanceCalculations))
-      randomContinuousIndex <- Async[F].delay(Random.nextDouble())
+      randomContinuousIndex <- Async[F].delay(MathOps.nextDouble)
       randomDiscreteIndex <-
         Async[F].delay(staircase.indexWhere(sc => sc._1 <= randomContinuousIndex && sc._2 > randomContinuousIndex))
       qOfForwardJump <- Async[F].delay {
@@ -135,7 +134,7 @@ private[thylacine] trait LeapfrogMcmcEngine[F[_]] extends ModelParameterSampler[
       a <- Async[F].delay {
              Math.exp(newLogPdf - previousLogPdfs(sampleIndex)) * qOfReverseJump / qOfForwardJump
            }
-      _ <- if (a >= 1 || Math.random() < a) {
+      _ <- if (a >= 1 || MathOps.nextDouble < a) {
              for {
                updatedDistances <- Async[F].delay {
                                      allDistances.zipWithIndex.map { case (oldDistances, index) =>

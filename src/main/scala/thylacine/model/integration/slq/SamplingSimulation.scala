@@ -22,8 +22,6 @@ import thylacine.util.MathOps
 
 import ch.obermuhlner.math.big.DefaultBigDecimalMath
 
-import scala.util.Random
-
 sealed private[thylacine] trait SamplingSimulation {
   private[thylacine] def getSample: ModelParameterCollection
   private[thylacine] def isConstructed: Boolean
@@ -79,14 +77,12 @@ private[thylacine] object SamplingSimulation {
         )
         .toMap
 
-    private val random = Random
-
     final override private[thylacine] val isConstructed: Boolean = true
 
     override private[thylacine] def getSample: ModelParameterCollection = {
-      lazy val continuousRandom = BigDecimal(Math.random().toString)
+      lazy val continuousRandom = BigDecimal(MathOps.nextDouble.toString)
 
-      indexedStaircase(random.nextInt(numberOfAbscissas) + 1)
+      indexedStaircase(MathOps.nextInt(numberOfAbscissas) + 1)
         .find {
           case ((staircaseLower, staircaseUpper), _)
               if staircaseLower <= continuousRandom && staircaseUpper > continuousRandom =>

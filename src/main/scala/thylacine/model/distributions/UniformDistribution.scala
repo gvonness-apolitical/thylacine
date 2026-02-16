@@ -19,6 +19,7 @@ package thylacine.model.distributions
 
 import thylacine.model.core.CanValidate
 import thylacine.model.core.values.VectorContainer
+import thylacine.util.MathOps
 
 import scala.collection.immutable.Vector as ScalaVector
 import scala.collection.parallel.CollectionConverters.*
@@ -88,7 +89,7 @@ private[thylacine] case class UniformDistribution(
   private[thylacine] def getRawSample: VectorContainer =
     VectorContainer(
       samplingScalingAndShift.par.map { case (scale, offset) =>
-        Math.random() * scale + offset
+        MathOps.nextDouble * scale + offset
       }.toVector
     )
 

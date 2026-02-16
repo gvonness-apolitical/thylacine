@@ -110,4 +110,10 @@ private[thylacine] object MathOps {
   private[thylacine] def nextGaussian: Double =
     randomGenerator.nextGaussian()
 
+  private[thylacine] def nextDouble: Double =
+    randomGenerator.nextDouble()
+
+  private[thylacine] def nextInt(bound: Int): Int =
+    randomGenerator.nextInt(bound)
+
 }

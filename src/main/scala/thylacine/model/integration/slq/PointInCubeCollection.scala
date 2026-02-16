@@ -96,7 +96,7 @@ private[thylacine] case class PointInCubeCollection(
   private[thylacine] def getSample(
     scaleParameter: Double
   ): VectorContainer = {
-    val randomIndex = BigDecimal(Math.random().toString)
+    val randomIndex = BigDecimal(MathOps.nextDouble.toString)
 
     sampleMapping
       .collect {

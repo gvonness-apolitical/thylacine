@@ -18,6 +18,7 @@ package ai.entrolution
 package thylacine.model.integration.slq
 
 import thylacine.model.core.*
+import thylacine.util.MathOps
 
 private[thylacine] case class PointInInterval(
   point: Double,
@@ -62,7 +63,7 @@ private[thylacine] case class PointInInterval(
   // Sampling from a linearly scaled version of this interval (1 corresponding to
   // the original interval and 0 to the central point)
   private[thylacine] def getSample(scaleParameter: Double): Double =
-    (Math.random() - 0.5) * scaleParameter * (upperBound - lowerBound) + point
+    (MathOps.nextDouble - 0.5) * scaleParameter * (upperBound - lowerBound) + point
 }
 
 private[thylacine] object PointInInterval {

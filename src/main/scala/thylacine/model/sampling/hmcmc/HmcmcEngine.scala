@@ -24,6 +24,7 @@ import thylacine.model.core.telemetry.HmcmcTelemetryUpdate
 import thylacine.model.core.values.IndexedVectorCollection.ModelParameterCollection
 import thylacine.model.core.values.{ IndexedVectorCollection, VectorContainer }
 import thylacine.model.sampling.ModelParameterSampler
+import thylacine.util.MathOps
 
 import cats.effect.implicits.*
 import cats.effect.kernel.Async
@@ -121,7 +122,7 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
                )
              ).start.void
            )
-      result <- Async[F].ifM(Async[F].delay(dH < 0 || Math.random() < Math.exp(-dH)))(
+      result <- Async[F].ifM(Async[F].delay(dH < 0 || MathOps.nextDouble < Math.exp(-dH)))(
                   for {
                     newGradNegLogPdf <- logPdfGradientAt(xNew).map(_.rawScalarMultiplyWith(-1))
                   } yield (xNew, eNew, newGradNegLogPdf, jumpAcceptances + 1, jumpAttempts + 1),

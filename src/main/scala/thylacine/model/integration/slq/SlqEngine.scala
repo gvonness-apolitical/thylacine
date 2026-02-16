@@ -28,6 +28,7 @@ import thylacine.model.core.values.IndexedVectorCollection.ModelParameterCollect
 import thylacine.model.integration.ModelParameterIntegrator
 import thylacine.model.integration.slq.SamplingSimulation.*
 import thylacine.model.sampling.ModelParameterSampler
+import thylacine.util.MathOps
 
 import cats.effect.implicits.*
 import cats.effect.kernel.Async
@@ -106,7 +107,7 @@ private[thylacine] trait SlqEngine[F[_]] extends ModelParameterIntegrator[F] wit
 
   private def jitter(logPdf: Double): Txn[Double] = {
     val jitterResult =
-      Math.nextAfter(logPdf, logPdf + (if (Math.random() >= 0.5) 1 else -1))
+      Math.nextAfter(logPdf, logPdf + (if (MathOps.nextDouble >= 0.5) 1 else -1))
 
     samplePool
       .get(logPdf)
