@@ -30,37 +30,37 @@ import org.scalatest.matchers.should.Matchers
 
 class PosteriorGradientSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
 
-  // Prior "x": mean=0, CI=2 → σ²=1
-  // Prior "y": mean=1, CI=4 → σ²=4
-  // Likelihood for x: identity, data=2, uncertainty=2 → σ²_obs=1
-  // Likelihood for y: identity, data=3, uncertainty=4 → σ²_obs=4
-  private val priorX = GaussianPrior.fromConfidenceIntervals[IO](
-    label               = "x",
-    values              = Vector(0.0),
-    confidenceIntervals = Vector(2.0)
+  // Prior "x": mean=0, σ=1 → σ²=1
+  // Prior "y": mean=1, σ=2 → σ²=4
+  // Likelihood for x: identity, data=2, σ=1 → σ²_obs=1
+  // Likelihood for y: identity, data=3, σ=2 → σ²_obs=4
+  private val priorX = GaussianPrior.fromStandardDeviations[IO](
+    label              = "x",
+    values             = Vector(0.0),
+    standardDeviations = Vector(1.0)
   )
 
-  private val priorY = GaussianPrior.fromConfidenceIntervals[IO](
-    label               = "y",
-    values              = Vector(1.0),
-    confidenceIntervals = Vector(4.0)
+  private val priorY = GaussianPrior.fromStandardDeviations[IO](
+    label              = "y",
+    values             = Vector(1.0),
+    standardDeviations = Vector(2.0)
   )
 
   private def posteriorF(implicit stm: STM[IO]): IO[UnnormalisedPosterior[IO]] =
     for {
       likelihoodX <- GaussianLinearLikelihood.of[IO](
-                       coefficients   = Vector(Vector(1.0)),
-                       measurements   = Vector(2.0),
-                       uncertainties  = Vector(2.0),
-                       priorLabel     = "x",
-                       evalCacheDepth = None
+                       coefficients       = Vector(Vector(1.0)),
+                       measurements       = Vector(2.0),
+                       standardDeviations = Vector(1.0),
+                       priorLabel         = "x",
+                       evalCacheDepth     = None
                      )
       likelihoodY <- GaussianLinearLikelihood.of[IO](
-                       coefficients   = Vector(Vector(1.0)),
-                       measurements   = Vector(3.0),
-                       uncertainties  = Vector(4.0),
-                       priorLabel     = "y",
-                       evalCacheDepth = None
+                       coefficients       = Vector(Vector(1.0)),
+                       measurements       = Vector(3.0),
+                       standardDeviations = Vector(2.0),
+                       priorLabel         = "y",
+                       evalCacheDepth     = None
                      )
     } yield UnnormalisedPosterior[IO](
       priors      = Set[Prior[IO, ?]](priorX, priorY),

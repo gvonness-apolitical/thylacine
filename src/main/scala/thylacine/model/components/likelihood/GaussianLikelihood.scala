@@ -58,13 +58,13 @@ object GaussianLikelihood {
   def apply[F[_]: Async, T <: ForwardModel[F]](
     forwardModel: T,
     measurements: Vector[Double],
-    uncertainties: Vector[Double]
+    standardDeviations: Vector[Double]
   ): GaussianLikelihood[F, T] =
     GaussianLikelihood(
       posteriorTermIdentifier = TermIdentifier(UUID.randomUUID().toString),
       observations = RecordedData(
-        values                       = VectorContainer(measurements),
-        symmetricConfidenceIntervals = VectorContainer(uncertainties)
+        values             = VectorContainer(measurements),
+        standardDeviations = VectorContainer(standardDeviations)
       ),
       forwardModel = forwardModel
     )

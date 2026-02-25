@@ -28,11 +28,11 @@ class CauchyPriorSpec extends AnyFlatSpec with should.Matchers {
 
   private val tol = 1e-8
 
-  // CI=2 → variance=(2/2)^2=1
+  // scale=1 → variance=1
   private val prior = CauchyPrior[IO](
-    label               = "x",
-    values              = Vector(0.0),
-    confidenceIntervals = Vector(2.0)
+    label           = "x",
+    values          = Vector(0.0),
+    scaleParameters = Vector(1.0)
   )
 
   private val dist = CauchyDistribution(prior.priorData)

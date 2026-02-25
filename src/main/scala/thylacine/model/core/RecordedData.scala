@@ -47,22 +47,22 @@ private[thylacine] object RecordedData {
 
   private[thylacine] def apply(
     values: VectorContainer,
-    symmetricConfidenceIntervals: VectorContainer
+    standardDeviations: VectorContainer
   ): RecordedData = {
     val validatedValues: VectorContainer = values.getValidated
-    val validatedConfidenceIntervals: VectorContainer =
-      symmetricConfidenceIntervals.getValidated
+    val validatedStdDevs: VectorContainer =
+      standardDeviations.getValidated
 
     require(
-      validatedValues.dimension == validatedConfidenceIntervals.dimension,
-      "Values and confidence intervals must have the same dimension"
+      validatedValues.dimension == validatedStdDevs.dimension,
+      "Values and standard deviations must have the same dimension"
     )
-    require(validatedConfidenceIntervals.values.values.forall(_ > 0), "All confidence intervals must be positive")
+    require(validatedStdDevs.values.values.forall(_ > 0), "All standard deviations must be positive")
 
     RecordedData(
       data = validatedValues,
       covariance = MatrixContainer(
-        values            = validatedConfidenceIntervals.values.map(i => (i._1, i._1) -> Math.pow(i._2 / 2, 2)),
+        values            = validatedStdDevs.values.map(i => (i._1, i._1) -> Math.pow(i._2, 2)),
         rowTotalNumber    = values.dimension,
         columnTotalNumber = values.dimension,
         validated         = true
@@ -71,6 +71,6 @@ private[thylacine] object RecordedData {
     )
   }
 
-  def apply(values: Vector[Double], symmetricConfidenceIntervals: Vector[Double]): RecordedData =
-    apply(VectorContainer(values), VectorContainer(symmetricConfidenceIntervals))
+  def apply(values: Vector[Double], standardDeviations: Vector[Double]): RecordedData =
+    apply(VectorContainer(values), VectorContainer(standardDeviations))
 }

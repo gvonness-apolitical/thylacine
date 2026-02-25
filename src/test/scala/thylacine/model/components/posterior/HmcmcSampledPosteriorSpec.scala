@@ -20,7 +20,7 @@ package thylacine.model.components.posterior
 import bengal.stm.STM
 import thylacine.config.HmcmcConfig
 import thylacine.model.components.likelihood.{ GaussianLinearLikelihood, Likelihood }
-import thylacine.model.components.prior.{ GaussianPrior, Prior }
+import thylacine.model.components.prior.{ GaussianPrior, Prior, UniformPrior }
 import thylacine.model.core.telemetry.HmcmcTelemetryUpdate
 
 import cats.effect.{ IO, Ref }
@@ -54,19 +54,19 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
   // Likelihood: identity forward model, measurements=(1,2), σ=(1,1)
   // True posterior mean ≈ (1, 2)
   private val mcmcPrior: GaussianPrior[IO] =
-    GaussianPrior.fromConfidenceIntervals[IO](
-      label               = "p",
-      values              = Vector(0.0, 0.0),
-      confidenceIntervals = Vector(10.0, 10.0)
+    GaussianPrior.fromStandardDeviations[IO](
+      label              = "p",
+      values             = Vector(0.0, 0.0),
+      standardDeviations = Vector(5.0, 5.0)
     )
 
   private def mcmcLikelihoodF(implicit stm: STM[IO]): IO[GaussianLinearLikelihood[IO]] =
     GaussianLinearLikelihood.of[IO](
-      coefficients   = Vector(Vector(1.0, 0.0), Vector(0.0, 1.0)),
-      measurements   = Vector(1.0, 2.0),
-      uncertainties  = Vector(1.0, 1.0),
-      priorLabel     = "p",
-      evalCacheDepth = None
+      coefficients       = Vector(Vector(1.0, 0.0), Vector(0.0, 1.0)),
+      measurements       = Vector(1.0, 2.0),
+      standardDeviations = Vector(0.5, 0.5),
+      priorLabel         = "p",
+      evalCacheDepth     = None
     )
 
   "HmcmcSampledPosterior" - {
@@ -77,13 +77,13 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
         .flatMap { implicit stm =>
           for {
             likelihood <- mcmcLikelihoodF
-            sampler = HmcmcSampledPosterior[IO](
-                        hmcmcConfig             = standardConfig,
-                        telemetryUpdateCallback = noOpCallback,
-                        seed                    = Map("p" -> Vector(1.0, 2.0)),
-                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                      )
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig             = standardConfig,
+                         telemetryUpdateCallback = noOpCallback,
+                         seed                    = Map("p" -> Vector(1.0, 2.0)),
+                         priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                         likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                       )
             samples <- sampler.sample(15)
             sampleList = samples.toList
             mean0      = sampleList.map(_("p").head).sum / sampleList.size
@@ -100,26 +100,26 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
       STM
         .runtime[IO]
         .flatMap { implicit stm =>
-          val prior1d = GaussianPrior.fromConfidenceIntervals[IO](
-            label               = "x",
-            values              = Vector(0.0),
-            confidenceIntervals = Vector(10.0)
+          val prior1d = GaussianPrior.fromStandardDeviations[IO](
+            label              = "x",
+            values             = Vector(0.0),
+            standardDeviations = Vector(5.0)
           )
           for {
             likelihood1d <- GaussianLinearLikelihood.of[IO](
-                              coefficients   = Vector(Vector(1.0)),
-                              measurements   = Vector(3.0),
-                              uncertainties  = Vector(1.0),
-                              priorLabel     = "x",
-                              evalCacheDepth = None
+                              coefficients       = Vector(Vector(1.0)),
+                              measurements       = Vector(3.0),
+                              standardDeviations = Vector(0.5),
+                              priorLabel         = "x",
+                              evalCacheDepth     = None
                             )
-            sampler = HmcmcSampledPosterior[IO](
-                        hmcmcConfig             = standardConfig,
-                        telemetryUpdateCallback = noOpCallback,
-                        seed                    = Map("x" -> Vector(3.0)),
-                        priors                  = Set[Prior[IO, ?]](prior1d),
-                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood1d)
-                      )
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig             = standardConfig,
+                         telemetryUpdateCallback = noOpCallback,
+                         seed                    = Map("x" -> Vector(3.0)),
+                         priors                  = Set[Prior[IO, ?]](prior1d),
+                         likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood1d)
+                       )
             samples <- sampler.sample(15)
             sampleList = samples.toList
             mean       = sampleList.map(_("x").head).sum / sampleList.size
@@ -136,13 +136,13 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
         .flatMap { implicit stm =>
           for {
             likelihood <- mcmcLikelihoodF
-            sampler = HmcmcSampledPosterior[IO](
-                        hmcmcConfig             = standardConfig,
-                        telemetryUpdateCallback = noOpCallback,
-                        seed                    = Map("p" -> Vector(1.0, 2.0)),
-                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                      )
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig             = standardConfig,
+                         telemetryUpdateCallback = noOpCallback,
+                         seed                    = Map("p" -> Vector(1.0, 2.0)),
+                         priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                         likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                       )
             samples <- sampler.sample(15)
             sampleList = samples.toList
             values0    = sampleList.map(_("p").head)
@@ -169,13 +169,13 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
             ref <- Ref.of[IO, List[HmcmcTelemetryUpdate]](List.empty)
             callback = (update: HmcmcTelemetryUpdate) => ref.update(update :: _)
             likelihood <- mcmcLikelihoodF
-            sampler = HmcmcSampledPosterior[IO](
-                        hmcmcConfig             = standardConfig,
-                        telemetryUpdateCallback = callback,
-                        seed                    = Map("p" -> Vector(1.0, 2.0)),
-                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                      )
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig             = standardConfig,
+                         telemetryUpdateCallback = callback,
+                         seed                    = Map("p" -> Vector(1.0, 2.0)),
+                         priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                         likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                       )
             _       <- sampler.sample(15)
             updates <- ref.get
             lastUpdate     = updates.maxBy(_.jumpAttempts)
@@ -194,13 +194,13 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
         .flatMap { implicit stm =>
           for {
             likelihood <- mcmcLikelihoodF
-            sampler = HmcmcSampledPosterior[IO](
-                        hmcmcConfig             = lightConfig,
-                        telemetryUpdateCallback = noOpCallback,
-                        seed                    = Map("p" -> Vector(1.0, 2.0)),
-                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                      )
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig             = lightConfig,
+                         telemetryUpdateCallback = noOpCallback,
+                         seed                    = Map("p" -> Vector(1.0, 2.0)),
+                         priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                         likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                       )
             samples <- sampler.sample(5)
           } yield samples.size
         }
@@ -215,13 +215,13 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
         .flatMap { implicit stm =>
           for {
             likelihood <- mcmcLikelihoodF
-            sampler = HmcmcSampledPosterior[IO](
-                        hmcmcConfig             = lightConfig,
-                        telemetryUpdateCallback = noOpCallback,
-                        seed                    = Map("p" -> Vector(1.0, 2.0)),
-                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                      )
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig             = lightConfig,
+                         telemetryUpdateCallback = noOpCallback,
+                         seed                    = Map("p" -> Vector(1.0, 2.0)),
+                         priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                         likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                       )
             samples <- sampler.sample(5)
           } yield samples
         }
@@ -235,29 +235,29 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
         .runtime[IO]
         .flatMap { implicit stm =>
           // Build an UnnormalisedPosterior with MCMC-friendly widths
-          val prior = GaussianPrior.fromConfidenceIntervals[IO](
-            label               = "q",
-            values              = Vector(0.0),
-            confidenceIntervals = Vector(10.0)
+          val prior = GaussianPrior.fromStandardDeviations[IO](
+            label              = "q",
+            values             = Vector(0.0),
+            standardDeviations = Vector(5.0)
           )
           for {
             likelihood <- GaussianLinearLikelihood.of[IO](
-                            coefficients   = Vector(Vector(1.0)),
-                            measurements   = Vector(5.0),
-                            uncertainties  = Vector(1.0),
-                            priorLabel     = "q",
-                            evalCacheDepth = None
+                            coefficients       = Vector(Vector(1.0)),
+                            measurements       = Vector(5.0),
+                            standardDeviations = Vector(0.5),
+                            priorLabel         = "q",
+                            evalCacheDepth     = None
                           )
             unnormalisedPosterior = UnnormalisedPosterior[IO](
                                       priors      = Set[Prior[IO, ?]](prior),
                                       likelihoods = Set[Likelihood[IO, ?, ?]](likelihood)
                                     )
-            sampler = HmcmcSampledPosterior[IO](
-                        hmcmcConfig             = lightConfig,
-                        posterior               = unnormalisedPosterior,
-                        telemetryUpdateCallback = noOpCallback,
-                        seed                    = Map("q" -> Vector(5.0))
-                      )
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig             = lightConfig,
+                         posterior               = unnormalisedPosterior,
+                         telemetryUpdateCallback = noOpCallback,
+                         seed                    = Map("q" -> Vector(5.0))
+                       )
             samples <- sampler.sample(3)
           } yield samples
         }
@@ -272,18 +272,18 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
         .flatMap { implicit stm =>
           for {
             likelihood <- mcmcLikelihoodF
-            sampler = HmcmcSampledPosterior[IO](
-                        hmcmcConfig = HmcmcConfig(
-                          stepsBetweenSamples        = 2,
-                          stepsInDynamicsSimulation  = 10,
-                          warmupStepCount            = 10,
-                          dynamicsSimulationStepSize = 0.05
-                        ),
-                        telemetryUpdateCallback = noOpCallback,
-                        seed                    = Map("p" -> Vector(1.0, 2.0)),
-                        priors                  = Set[Prior[IO, ?]](mcmcPrior),
-                        likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
-                      )
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig = HmcmcConfig(
+                           stepsBetweenSamples        = 2,
+                           stepsInDynamicsSimulation  = 10,
+                           warmupStepCount            = 10,
+                           dynamicsSimulationStepSize = 0.05
+                         ),
+                         telemetryUpdateCallback = noOpCallback,
+                         seed                    = Map("p" -> Vector(1.0, 2.0)),
+                         priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                         likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                       )
             samples <- sampler.sample(30)
             sampleList = samples.toList
             values0    = sampleList.map(_("p").head)
@@ -307,6 +307,151 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
           v1 should be < 3.0
           // Independent dimensions → low correlation
           Math.abs(corr) should be < 0.8
+        }
+    }
+
+    "produce samples with a diagonal mass matrix" in {
+      val massMatrixConfig: HmcmcConfig = HmcmcConfig(
+        stepsBetweenSamples        = 2,
+        stepsInDynamicsSimulation  = 10,
+        warmupStepCount            = 5,
+        dynamicsSimulationStepSize = 0.05,
+        massMatrixDiagonal         = Some(Vector(1.0, 1.0))
+      )
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- mcmcLikelihoodF
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig             = massMatrixConfig,
+                         telemetryUpdateCallback = noOpCallback,
+                         seed                    = Map("p" -> Vector(1.0, 2.0)),
+                         priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                         likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                       )
+            samples <- sampler.sample(10)
+            sampleList = samples.toList
+            mean0      = sampleList.map(_("p").head).sum / sampleList.size
+            mean1      = sampleList.map(_("p")(1)).sum / sampleList.size
+          } yield (mean0, mean1)
+        }
+        .asserting { case (m0, m1) =>
+          m0 shouldBe (1.0 +- 3.0)
+          m1 shouldBe (2.0 +- 3.0)
+        }
+    }
+
+    "successfully sample multiple times without re-running burn-in" in {
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            likelihood <- mcmcLikelihoodF
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig             = lightConfig,
+                         telemetryUpdateCallback = noOpCallback,
+                         seed                    = Map("p" -> Vector(1.0, 2.0)),
+                         priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                         likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                       )
+            samples1 <- sampler.sample(3)
+            samples2 <- sampler.sample(3)
+          } yield (samples1, samples2)
+        }
+        .asserting { case (s1, s2) =>
+          s1 should not be empty
+          s2 should not be empty
+        }
+    }
+
+    "adapt step size and produce valid samples" in {
+      val adaptiveConfig: HmcmcConfig = HmcmcConfig(
+        stepsBetweenSamples        = 2,
+        stepsInDynamicsSimulation  = 10,
+        warmupStepCount            = 20,
+        dynamicsSimulationStepSize = 0.5,
+        adaptStepSize              = true,
+        targetAcceptanceRate       = 0.65
+      )
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            ref <- Ref.of[IO, List[HmcmcTelemetryUpdate]](List.empty)
+            callback = (update: HmcmcTelemetryUpdate) => ref.update(update :: _)
+            likelihood <- mcmcLikelihoodF
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig             = adaptiveConfig,
+                         telemetryUpdateCallback = callback,
+                         seed                    = Map("p" -> Vector(1.0, 2.0)),
+                         priors                  = Set[Prior[IO, ?]](mcmcPrior),
+                         likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                       )
+            samples <- sampler.sample(15)
+            updates <- ref.get
+            sampleList = samples.toList
+            mean0      = sampleList.map(_("p").head).sum / sampleList.size
+            mean1      = sampleList.map(_("p")(1)).sum / sampleList.size
+          } yield (mean0, mean1, updates)
+        }
+        .asserting { result =>
+          val (m0, m1, updates) = result
+          // Samples should be near the posterior mean
+          m0 shouldBe (1.0 +- 3.0)
+          m1 shouldBe (2.0 +- 3.0)
+          // If we have telemetry, check acceptance rate is reasonable
+          if (updates.nonEmpty) {
+            val lastUpdate     = updates.maxBy(_.jumpAttempts)
+            val acceptanceRate = lastUpdate.jumpAcceptances.toDouble / lastUpdate.jumpAttempts
+            acceptanceRate should be > 0.1
+            acceptanceRate should be <= 1.0
+          }
+          succeed
+        }
+    }
+
+    "keep samples within bounds when using UniformPrior" in {
+      val boundedConfig: HmcmcConfig = HmcmcConfig(
+        stepsBetweenSamples        = 2,
+        stepsInDynamicsSimulation  = 10,
+        warmupStepCount            = 5,
+        dynamicsSimulationStepSize = 0.05
+      )
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          val uniformPrior = UniformPrior.fromBounds[IO](
+            label     = "u",
+            maxBounds = Vector(5.0),
+            minBounds = Vector(-5.0)
+          )
+          for {
+            likelihood <- GaussianLinearLikelihood.of[IO](
+                            coefficients       = Vector(Vector(1.0)),
+                            measurements       = Vector(0.0),
+                            standardDeviations = Vector(1.0),
+                            priorLabel         = "u",
+                            evalCacheDepth     = None
+                          )
+            sampler <- HmcmcSampledPosterior.of[IO](
+                         hmcmcConfig             = boundedConfig,
+                         telemetryUpdateCallback = noOpCallback,
+                         seed                    = Map("u" -> Vector(0.0)),
+                         priors                  = Set[Prior[IO, ?]](uniformPrior),
+                         likelihoods             = Set[Likelihood[IO, ?, ?]](likelihood)
+                       )
+            samples <- sampler.sample(15)
+          } yield samples
+        }
+        .asserting { samples =>
+          samples should not be empty
+          samples.foreach { s =>
+            val value = s("u").head
+            value should be >= -5.0
+            value should be <= 5.0
+          }
+          succeed
         }
     }
   }

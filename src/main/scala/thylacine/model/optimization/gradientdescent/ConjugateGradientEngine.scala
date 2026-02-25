@@ -53,7 +53,7 @@ trait ConjugateGradientEngine[F[_]] extends ModelParameterOptimizer[F] with Gold
       negativeGradientLogPdf <-
         logPdfGradientAt(startingEvaluation.modelParameterArgument).map(_.rawScalarMultiplyWith(-1))
       negativeGradientLogPdfVector     <- Async[F].delay(modelParameterCollectionToVectorValues(negativeGradientLogPdf))
-      previousGradientMagnitudeSquared <- Async[F].delay(negativeGradientLogPdfVector.magnitudeSquared)
+      previousGradientMagnitudeSquared <- Async[F].delay(previousGradient.magnitudeSquared)
       newBeta <- Async[F].delay {
                    Math.max(
                      negativeGradientLogPdfVector

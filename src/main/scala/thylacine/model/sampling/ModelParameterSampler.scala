@@ -27,12 +27,12 @@ import cats.syntax.all.*
 trait ModelParameterSampler[F[_]] {
   this: AsyncImplicits[F] & ModelParameterContext =>
 
-  protected def sampleModelParameters(numberOfSamples: Int): F[Set[ModelParameterCollection]]
+  protected def sampleModelParameters(numberOfSamples: Int): F[Vector[ModelParameterCollection]]
 
   // Low-level API - For sampling priors
   protected def rawSampleModelParameters: F[VectorContainer] =
     sampleModelParameters(1).map(s => VectorContainer(modelParameterCollectionToRawVector(s.head)))
 
-  final def sample(numberOfSamples: Int): F[Set[Map[String, Vector[Double]]]] =
+  final def sample(numberOfSamples: Int): F[Vector[Map[String, Vector[Double]]]] =
     sampleModelParameters(numberOfSamples).map(_.map(_.genericScalaRepresentation))
 }

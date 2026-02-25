@@ -19,6 +19,7 @@ package thylacine.model.components.forwardmodel
 
 import bengal.stm.STM
 import thylacine.TestUtils.*
+import thylacine.model.core.computation.DifferencingScheme
 import thylacine.model.core.values.IndexedVectorCollection
 
 import cats.effect.IO
@@ -83,6 +84,46 @@ class NonLinearForwardModelSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
           }
         }
         .asserting(_ shouldBe (0.0 +- 1e-3))
+    }
+
+    "compute central-difference Jacobian with tighter accuracy" in {
+      STM
+        .runtime[IO]
+        .flatMap { implicit stm =>
+          for {
+            modelForward <- NonLinearForwardModel.of[IO](
+                              evaluation         = nonlinearEval,
+                              differential       = 1e-5,
+                              domainDimensions   = Map("x" -> 2),
+                              rangeDimension     = 2,
+                              evalCacheDepth     = None,
+                              jacobianCacheDepth = None,
+                              differencingScheme = DifferencingScheme.Forward
+                            )
+            modelCentral <- NonLinearForwardModel.of[IO](
+                              evaluation         = nonlinearEval,
+                              differential       = 1e-5,
+                              domainDimensions   = Map("x" -> 2),
+                              rangeDimension     = 2,
+                              evalCacheDepth     = None,
+                              jacobianCacheDepth = None,
+                              differencingScheme = DifferencingScheme.Central
+                            )
+            jacForward <- modelForward.jacobianAt(IndexedVectorCollection(Map("x" -> Vector(2.0, 3.0))))
+            jacCentral <- modelCentral.jacobianAt(IndexedVectorCollection(Map("x" -> Vector(2.0, 3.0))))
+          } yield {
+            val expected     = Vector(Vector(4.0, 0.0), Vector(3.0, 2.0))
+            val forwardError = maxMatrixDiff(jacForward.genericScalaRepresentation("x"), expected)
+            val centralError = maxMatrixDiff(jacCentral.genericScalaRepresentation("x"), expected)
+            (forwardError, centralError)
+          }
+        }
+        .asserting { case (fe, ce) =>
+          // Central differences should be more accurate than forward at the same step size
+          ce should be < fe
+          // Central should achieve ~1e-10 accuracy with h=1e-5 (O(h^2) error)
+          ce shouldBe (0.0 +- 1e-8)
+        }
     }
 
     "use user-provided analytical Jacobian when given" in {

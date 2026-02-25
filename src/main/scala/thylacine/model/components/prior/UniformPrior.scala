@@ -39,6 +39,9 @@ case class UniformPrior[F[_]: Async](
       .UniformDistribution(upperBounds = VectorContainer(maxBounds), lowerBounds = VectorContainer(minBounds))
       .getValidated
 
+  override private[thylacine] val parameterBounds: Option[(VectorContainer, VectorContainer)] =
+    Some((VectorContainer(minBounds), VectorContainer(maxBounds)))
+
   override private[thylacine] lazy val getValidated: UniformPrior[F] =
     if (validated) this
     else this.copy(validated = true)

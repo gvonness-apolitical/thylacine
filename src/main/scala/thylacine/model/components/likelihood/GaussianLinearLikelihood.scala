@@ -62,7 +62,7 @@ object GaussianLinearLikelihood {
   def of[F[_]: STM: Async](
     coefficients: Vector[Vector[Double]],
     measurements: Vector[Double],
-    uncertainties: Vector[Double],
+    standardDeviations: Vector[Double],
     priorLabel: String,
     evalCacheDepth: Option[Int]
   ): F[GaussianLinearLikelihood[F]] =
@@ -76,8 +76,8 @@ object GaussianLinearLikelihood {
     } yield GaussianLinearLikelihood(
       posteriorTermIdentifier = TermIdentifier(UUID.randomUUID().toString),
       observations = RecordedData(
-        values                       = VectorContainer(measurements),
-        symmetricConfidenceIntervals = VectorContainer(uncertainties)
+        values             = VectorContainer(measurements),
+        standardDeviations = VectorContainer(standardDeviations)
       ),
       forwardModel = linearForwardModel
     )

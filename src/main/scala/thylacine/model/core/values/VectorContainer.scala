@@ -146,4 +146,7 @@ private[thylacine] object VectorContainer {
 
   private[thylacine] def random(dimension: Int): VectorContainer =
     VectorContainer((1 to dimension).map(_ => MathOps.nextGaussian).toVector)
+
+  private[thylacine] def randomWithVariances(variances: Vector[Double]): VectorContainer =
+    VectorContainer(variances.map(v => MathOps.nextGaussian * Math.sqrt(v)))
 }

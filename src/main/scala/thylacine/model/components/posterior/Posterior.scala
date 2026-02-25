@@ -22,6 +22,7 @@ import thylacine.model.components.prior.*
 import thylacine.model.core.GenericIdentifier.*
 import thylacine.model.core.*
 import thylacine.model.core.values.IndexedVectorCollection.ModelParameterCollection
+import thylacine.model.core.values.VectorContainer
 import thylacine.model.core.values.modelparameters.{ ModelParameterPdf, ModelParameterContext }
 
 import cats.syntax.all.*
@@ -46,6 +47,15 @@ private[thylacine] trait Posterior[F[_], P <: Prior[F, ?], L <: Likelihood[F, ?,
           i.posteriorTermIdentifier.value
         ) -> i.generatorDimension
       )
+
+  // Collected parameter bounds from all priors that define them (e.g., UniformPrior).
+  // Maps each prior's identifier to (lowerBounds, upperBounds).
+  private[thylacine] lazy val collectedBounds: Map[ModelParameterIdentifier, (VectorContainer, VectorContainer)] =
+    priors.toVector.flatMap { p =>
+      p.parameterBounds.map { bounds =>
+        ModelParameterIdentifier(p.posteriorTermIdentifier.value) -> bounds
+      }
+    }.toMap
 
   final override private[thylacine] def logPdfGradientAt(
     input: ModelParameterCollection

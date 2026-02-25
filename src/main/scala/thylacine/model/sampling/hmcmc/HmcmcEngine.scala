@@ -27,7 +27,7 @@ import thylacine.model.sampling.ModelParameterSampler
 import thylacine.util.MathOps
 
 import cats.effect.implicits.*
-import cats.effect.kernel.Async
+import cats.effect.kernel.{ Async, Deferred, Ref }
 import cats.syntax.all.*
 
 /** Implementation of the Hamiltonian MCMC sampling algorithm
@@ -46,6 +46,14 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
   protected def warmUpSimulationCount: Int
   protected def startingPoint: F[ModelParameterCollection]
   protected def telemetryUpdateCallback: HmcmcTelemetryUpdate => F[Unit]
+  protected def massMatrixDiagonal: Option[Vector[Double]]
+  protected def adaptStepSize: Boolean
+  protected def targetAcceptanceRate: Double
+
+  protected def burnInStarted: Ref[F, Boolean]
+  protected def burnInResult: Deferred[F, ModelParameterCollection]
+  protected def epsilonRef: Ref[F, Double]
+  protected def daLogEpsilonBarRef: Ref[F, Double]
 
   /*
    * - - -- --- ----- -------- -------------
@@ -53,35 +61,142 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
    * - - -- --- ----- -------- -------------
    */
 
+  // Reflect a scalar value into [lo, hi] and determine if momentum should be negated.
+  // Returns (reflected_value, should_negate_momentum).
+  private def reflectScalar(x: Double, lo: Double, hi: Double): (Double, Boolean) = {
+    if (x >= lo && x <= hi) (x, false)
+    else {
+      val period = 2.0 * (hi - lo)
+      val offset = ((x - lo) % period + period) % period // always non-negative
+      if (offset <= (hi - lo)) (lo + offset, false)
+      else (lo + period - offset, true)
+    }
+  }
+
+  // Apply boundary reflection to a position + momentum pair.
+  // Only bounded parameters (from UniformPrior) are reflected.
+  private def applyBoundaryReflection(
+    position: ModelParameterCollection,
+    momentum: VectorContainer
+  ): (ModelParameterCollection, VectorContainer) = {
+    val bounds = collectedBounds
+    if (bounds.isEmpty) (position, momentum)
+    else {
+      val posRaw   = modelParameterCollectionToRawVector(position)
+      val momRaw   = momentum.rawVector
+      val posArray = posRaw.clone()
+      val momArray = momRaw.clone()
+
+      // We need the ordered parameter layout to know which raw indices
+      // correspond to which parameter identifiers.
+      var offset = 0
+      orderedParameterIdentifiersWithDimension.foreach { case (id, dim) =>
+        bounds.get(id).foreach { case (lo, hi) =>
+          val loVec = lo.rawVector
+          val hiVec = hi.rawVector
+          (0 until dim).foreach { j =>
+            val (reflected, negate) = reflectScalar(posArray(offset + j), loVec(j), hiVec(j))
+            posArray(offset + j)             = reflected
+            if (negate) momArray(offset + j) = -momArray(offset + j)
+          }
+        }
+        offset += dim
+      }
+
+      (rawVectorToModelParameterCollection(posArray), VectorContainer(momArray.toVector))
+    }
+  }
+
+  // Inverse mass matrix diagonal (1/M_ii for each component).
+  // None means unit mass (identity).
+  private lazy val inverseMassDiag: Option[VectorContainer] =
+    massMatrixDiagonal.map(m => VectorContainer(m.map(1.0 / _)))
+
+  // Apply M^{-1} to a raw vector: element-wise multiply by inverseMassDiag
+  private def applyInverseMass(v: VectorContainer): VectorContainer =
+    inverseMassDiag match {
+      case Some(invM) => v.rawProductWith(invM)
+      case None => v
+    }
+
   private def runLeapfrogAt(
     input: ModelParameterCollection,
     rawP: VectorContainer,
     gradNegLogPdf: ModelParameterCollection,
+    epsilon: Double,
     iterationCount: Int = 1
-  ): F[(ModelParameterCollection, VectorContainer)] =
+  ): F[(ModelParameterCollection, VectorContainer, ModelParameterCollection)] =
     if (iterationCount > stepsInSimulation) {
-      Async[F].pure((input, rawP))
+      Async[F].pure((input, rawP, gradNegLogPdf))
     } else {
       (for {
         p <- Async[F].delay(rawVectorToModelParameterCollection(rawP.rawVector))
         pNew <-
-          Async[F].delay(p.rawSumWith(gradNegLogPdf.rawScalarMultiplyWith(-simulationEpsilon / 2)))
-        xNew <- Async[F].delay(input.rawSumWith(pNew.rawScalarMultiplyWith(simulationEpsilon)))
+          Async[F].delay(p.rawSumWith(gradNegLogPdf.rawScalarMultiplyWith(-epsilon / 2)))
+        pNewRaw <- Async[F].delay {
+                     VectorContainer(modelParameterCollectionToRawVector(pNew).toArray.toVector)
+                   }
+        // Position update: x += ε * M^{-1} * p, then reflect at bounds
+        reflectedResult <- Async[F].delay {
+                             val scaledP = applyInverseMass(pNewRaw).rawScalarProductWith(epsilon)
+                             val xRaw    = input.rawSumWith(rawVectorToModelParameterCollection(scaledP.rawVector))
+                             applyBoundaryReflection(xRaw, pNewRaw)
+                           }
+        (xNew, pReflected) = reflectedResult
         gNew <- logPdfGradientAt(xNew).map(_.rawScalarMultiplyWith(-1))
+        // Second half-step of momentum: use reflected momentum
+        pReflectedMpc <- Async[F].delay(rawVectorToModelParameterCollection(pReflected.rawVector))
         pNewNew <- Async[F].delay {
                      modelParameterCollectionToRawVector(
-                       pNew.rawSumWith(
-                         gNew.rawScalarMultiplyWith(-simulationEpsilon / 2)
+                       pReflectedMpc.rawSumWith(
+                         gNew.rawScalarMultiplyWith(-epsilon / 2)
                        )
                      )
                    }
       } yield (xNew, VectorContainer(pNewNew.toArray.toVector), gNew)).flatMap { case (xNew, pNewNew, gNew) =>
-        runLeapfrogAt(xNew, pNewNew, gNew, iterationCount + 1)
+        runLeapfrogAt(xNew, pNewNew, gNew, epsilon, iterationCount + 1)
       }
     }
 
-  private def getHamiltonianValue(p: VectorContainer, E: Double): Double =
-    p.rawDotProductWith(p) / 2.0 + E
+  // K(p) = Σ p_i² / (2 * M_ii). With unit mass: p·p / 2.
+  private def getHamiltonianValue(p: VectorContainer, E: Double): Double = {
+    val kineticEnergy = inverseMassDiag match {
+      case Some(invM) => p.rawProductWith(p).rawDotProductWith(invM) / 2.0
+      case None => p.rawDotProductWith(p) / 2.0
+    }
+    kineticEnergy + E
+  }
+
+  /*
+   * - - -- --- ----- -------- -------------
+   * Dual Averaging for Adaptive Step Size
+   * (Nesterov 2009, as used in Stan/NUTS)
+   * - - -- --- ----- -------- -------------
+   */
+
+  // Dual averaging constants
+  private val daGamma: Double = 0.05
+  private val daT0: Double    = 10.0
+  private val daKappa: Double = 0.75
+
+  // Dual averaging state: (hBar, logEpsilonBar, mu, stepCount)
+  // hBar: running average of (delta - alpha)
+  // logEpsilonBar: smoothed log-epsilon (final value after burn-in)
+  // mu: log(10 * epsilon_0)
+  // stepCount: number of adaptation steps taken
+  private def updateDualAveraging(
+    hBar: Double,
+    logEpsilonBar: Double,
+    mu: Double,
+    stepCount: Int,
+    acceptProb: Double
+  ): (Double, Double, Double) = {
+    val m         = stepCount.toDouble
+    val newHBar   = (1.0 - 1.0 / (m + daT0)) * hBar + (1.0 / (m + daT0)) * (targetAcceptanceRate - acceptProb)
+    val logEps    = mu - Math.sqrt(m) / daGamma * newHBar
+    val newLogBar = Math.pow(m, -daKappa) * logEps + (1.0 - Math.pow(m, -daKappa)) * logEpsilonBar
+    (newHBar, newLogBar, logEps)
+  }
 
   private def runDynamicSimulationFrom(
     input: ModelParameterCollection,
@@ -91,11 +206,17 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
     burnIn: Boolean                                 = false,
     iterationCount: Int,
     numberOfRequestedSamples: Int,
-    jumpAcceptances: Int                   = 0,
-    jumpAttempts: Int                      = 0,
-    samples: Set[ModelParameterCollection] = Set()
-  ): F[Set[ModelParameterCollection]] = {
-    val simulationSpec: F[Set[ModelParameterCollection]] = (for {
+    jumpAcceptances: Int                      = 0,
+    jumpAttempts: Int                         = 0,
+    samples: Vector[ModelParameterCollection] = Vector(),
+    // Dual averaging state (only used during burn-in with adaptStepSize=true)
+    daHBar: Double          = 0.0,
+    daLogEpsilonBar: Double = 0.0,
+    daMu: Double            = 0.0,
+    daStepCount: Int        = 0
+  ): F[Vector[ModelParameterCollection]] = {
+    val simulationSpec: F[Vector[ModelParameterCollection]] = (for {
+      epsilon <- epsilonRef.get
       negLogPdf <- logPdfOpt match {
                      case Some(res) => Async[F].pure(res)
                      case _ => logPdfAt(input).map(_ * -1)
@@ -104,13 +225,18 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
                          case Some(res) => Async[F].pure(res)
                          case _ => logPdfGradientAt(input).map(_.rawScalarMultiplyWith(-1))
                        }
-      p           <- Async[F].delay(VectorContainer.random(domainDimension))
-      hamiltonian <- Async[F].delay(getHamiltonianValue(p, negLogPdf))
-      xAndPNew    <- runLeapfrogAt(input, p, gradNegLogPdf)
-      (xNew, pNew) = xAndPNew
-      eNew <- logPdfAt(xNew).map(_ * -1)
-      hNew <- Async[F].delay(getHamiltonianValue(pNew, eNew))
-      dH   <- Async[F].delay(hNew - hamiltonian)
+      // Sample momentum: p_i ~ N(0, M_ii). With unit mass: p_i ~ N(0, 1).
+      p <- Async[F].delay(massMatrixDiagonal match {
+             case Some(massDiag) => VectorContainer.randomWithVariances(massDiag)
+             case None => VectorContainer.random(domainDimension)
+           })
+      hamiltonian    <- Async[F].delay(getHamiltonianValue(p, negLogPdf))
+      leapfrogResult <- runLeapfrogAt(input, p, gradNegLogPdf, epsilon)
+      (xNew, pNew, gradAtXNew) = leapfrogResult
+      eNew       <- logPdfAt(xNew).map(_ * -1)
+      hNew       <- Async[F].delay(getHamiltonianValue(pNew, eNew))
+      dH         <- Async[F].delay(hNew - hamiltonian)
+      acceptProb <- Async[F].delay(Math.min(1.0, Math.exp(-dH)))
       _ <- Async[F].ifM(Async[F].pure(burnIn || jumpAttempts <= 0))(
              Async[F].unit,
              telemetryUpdateCallback(
@@ -122,29 +248,45 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
                )
              ).start.void
            )
-      result <- Async[F].ifM(Async[F].delay(dH < 0 || MathOps.nextDouble < Math.exp(-dH)))(
-                  for {
-                    newGradNegLogPdf <- logPdfGradientAt(xNew).map(_.rawScalarMultiplyWith(-1))
-                  } yield (xNew, eNew, newGradNegLogPdf, jumpAcceptances + 1, jumpAttempts + 1),
+      accepted <- Async[F].delay(dH < 0 || MathOps.nextDouble < Math.exp(-dH))
+      result <- Async[F].ifM(Async[F].pure(accepted))(
+                  Async[F].pure((xNew, eNew, gradAtXNew, jumpAcceptances + 1, jumpAttempts + 1)),
                   Async[F].delay((input, negLogPdf, gradNegLogPdf, jumpAcceptances, jumpAttempts + 1))
                 )
-    } yield result).flatMap { case (xNew, eNew, gNew, acceptances, attempts) =>
-      runDynamicSimulationFrom(
-        input                    = xNew,
-        maxIterations            = maxIterations,
-        logPdfOpt                = Option(eNew),
-        gradLogPdfOpt            = Option(gNew),
-        burnIn                   = burnIn,
-        iterationCount           = iterationCount + 1,
-        numberOfRequestedSamples = numberOfRequestedSamples,
-        jumpAcceptances          = acceptances,
-        jumpAttempts             = attempts,
-        samples                  = samples
-      )
+      // Dual averaging update during burn-in
+      daState <- if (burnIn && adaptStepSize) {
+                   val newStep = daStepCount + 1
+                   val (newHBar, newLogBar, logEps) =
+                     updateDualAveraging(daHBar, daLogEpsilonBar, daMu, newStep, acceptProb)
+                   for {
+                     _ <- epsilonRef.set(Math.exp(logEps))
+                     _ <- daLogEpsilonBarRef.set(newLogBar)
+                   } yield (newHBar, newLogBar, daMu, newStep)
+                 } else {
+                   Async[F].pure((daHBar, daLogEpsilonBar, daMu, daStepCount))
+                 }
+    } yield (result, daState)).flatMap {
+      case ((xNew, eNew, gNew, acceptances, attempts), (newHBar, newLogBar, newMu, newStepCount)) =>
+        runDynamicSimulationFrom(
+          input                    = xNew,
+          maxIterations            = maxIterations,
+          logPdfOpt                = Option(eNew),
+          gradLogPdfOpt            = Option(gNew),
+          burnIn                   = burnIn,
+          iterationCount           = iterationCount + 1,
+          numberOfRequestedSamples = numberOfRequestedSamples,
+          jumpAcceptances          = acceptances,
+          jumpAttempts             = attempts,
+          samples                  = samples,
+          daHBar                   = newHBar,
+          daLogEpsilonBar          = newLogBar,
+          daMu                     = newMu,
+          daStepCount              = newStepCount
+        )
     }
 
-    val sampleAppendSpec: F[Set[ModelParameterCollection]] =
-      Async[F].delay(samples + input).flatMap { newSamples =>
+    val sampleAppendSpec: F[Vector[ModelParameterCollection]] =
+      Async[F].delay(samples :+ input).flatMap { newSamples =>
         Async[F].ifM(Async[F].pure(newSamples.size >= numberOfRequestedSamples || burnIn))(
           Async[F].pure(newSamples),
           runDynamicSimulationFrom(
@@ -157,7 +299,11 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
             numberOfRequestedSamples = numberOfRequestedSamples,
             jumpAcceptances          = jumpAcceptances,
             jumpAttempts             = jumpAttempts,
-            samples                  = newSamples
+            samples                  = newSamples,
+            daHBar                   = daHBar,
+            daLogEpsilonBar          = daLogEpsilonBar,
+            daMu                     = daMu,
+            daStepCount              = daStepCount
           )
         )
       }
@@ -174,7 +320,7 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
    * - - -- --- ----- -------- -------------
    */
 
-  private lazy val burnIn: F[ModelParameterCollection] =
+  private def runBurnIn: F[ModelParameterCollection] =
     for {
       possibleStartingPoint <- startingPoint
       priorSample <-
@@ -183,14 +329,34 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
         } else {
           Async[F].pure(possibleStartingPoint)
         }
+      // Initialize dual averaging state
+      mu = Math.log(10.0 * simulationEpsilon)
+      _ <- daLogEpsilonBarRef.set(Math.log(simulationEpsilon))
       results <- runDynamicSimulationFrom(
                    input                    = priorSample,
                    maxIterations            = warmUpSimulationCount,
                    burnIn                   = true,
                    numberOfRequestedSamples = 1,
-                   iterationCount           = 0
+                   iterationCount           = 0,
+                   daMu                     = mu,
+                   daLogEpsilonBar          = Math.log(simulationEpsilon)
                  )
+      // After burn-in with adaptation, fix epsilon to the smoothed bar value
+      _ <- if (adaptStepSize) {
+             daLogEpsilonBarRef.get.flatMap(logBar => epsilonRef.set(Math.exp(logBar)))
+           } else {
+             Async[F].unit
+           }
     } yield results.head
+
+  private def getOrRunBurnIn: F[ModelParameterCollection] =
+    burnInStarted.getAndSet(true).flatMap { alreadyStarted =>
+      if (!alreadyStarted) {
+        runBurnIn.flatMap(result => burnInResult.complete(result).as(result))
+      } else {
+        burnInResult.get
+      }
+    }
 
   /*
    * - - -- --- ----- -------- -------------
@@ -198,9 +364,9 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
    * - - -- --- ----- -------- -------------
    */
 
-  override protected def sampleModelParameters(numberOfSamples: Int): F[Set[ModelParameterCollection]] =
+  override protected def sampleModelParameters(numberOfSamples: Int): F[Vector[ModelParameterCollection]] =
     for {
-      startPt <- burnIn
+      startPt <- getOrRunBurnIn
       results <- runDynamicSimulationFrom(
                    input                    = startPt,
                    maxIterations            = simulationsBetweenSamples,

@@ -47,14 +47,14 @@ object CauchyPrior {
   def apply[F[_]: Async](
     label: String,
     values: Vector[Double],
-    confidenceIntervals: Vector[Double]
+    scaleParameters: Vector[Double]
   ): CauchyPrior[F] = {
-    require(values.size == confidenceIntervals.size, "Values and confidence intervals must have the same size")
+    require(values.size == scaleParameters.size, "Values and scale parameters must have the same size")
     CauchyPrior(
       identifier = ModelParameterIdentifier(label),
       priorData = RecordedData(
-        values                       = VectorContainer(values),
-        symmetricConfidenceIntervals = VectorContainer(confidenceIntervals)
+        values             = VectorContainer(values),
+        standardDeviations = VectorContainer(scaleParameters)
       )
     )
   }

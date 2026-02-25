@@ -57,19 +57,19 @@ class LeapfrogMcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec wi
   // Likelihood: identity forward model, measurements=(1,2), sigma=(1,1)
   // True posterior mean ~ (1, 2)
   private val mcmcPrior: GaussianPrior[IO] =
-    GaussianPrior.fromConfidenceIntervals[IO](
-      label               = "p",
-      values              = Vector(0.0, 0.0),
-      confidenceIntervals = Vector(10.0, 10.0)
+    GaussianPrior.fromStandardDeviations[IO](
+      label              = "p",
+      values             = Vector(0.0, 0.0),
+      standardDeviations = Vector(5.0, 5.0)
     )
 
   private def mcmcLikelihoodF(implicit stm: STM[IO]): IO[GaussianLinearLikelihood[IO]] =
     GaussianLinearLikelihood.of[IO](
-      coefficients   = Vector(Vector(1.0, 0.0), Vector(0.0, 1.0)),
-      measurements   = Vector(1.0, 2.0),
-      uncertainties  = Vector(1.0, 1.0),
-      priorLabel     = "p",
-      evalCacheDepth = None
+      coefficients       = Vector(Vector(1.0, 0.0), Vector(0.0, 1.0)),
+      measurements       = Vector(1.0, 2.0),
+      standardDeviations = Vector(0.5, 0.5),
+      priorLabel         = "p",
+      evalCacheDepth     = None
     )
 
   private def build2dSampler(
@@ -120,18 +120,18 @@ class LeapfrogMcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec wi
       STM
         .runtime[IO]
         .flatMap { implicit stm =>
-          val prior1d = GaussianPrior.fromConfidenceIntervals[IO](
-            label               = "x",
-            values              = Vector(0.0),
-            confidenceIntervals = Vector(10.0)
+          val prior1d = GaussianPrior.fromStandardDeviations[IO](
+            label              = "x",
+            values             = Vector(0.0),
+            standardDeviations = Vector(5.0)
           )
           for {
             likelihood1d <- GaussianLinearLikelihood.of[IO](
-                              coefficients   = Vector(Vector(1.0)),
-                              measurements   = Vector(3.0),
-                              uncertainties  = Vector(1.0),
-                              priorLabel     = "x",
-                              evalCacheDepth = None
+                              coefficients       = Vector(Vector(1.0)),
+                              measurements       = Vector(3.0),
+                              standardDeviations = Vector(0.5),
+                              priorLabel         = "x",
+                              evalCacheDepth     = None
                             )
             posterior1d = UnnormalisedPosterior[IO](
                             priors      = Set[Prior[IO, ?]](prior1d),
@@ -159,19 +159,19 @@ class LeapfrogMcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec wi
       STM
         .runtime[IO]
         .flatMap { implicit stm =>
-          val prior3d = GaussianPrior.fromConfidenceIntervals[IO](
-            label               = "v",
-            values              = Vector.fill(3)(0.0),
-            confidenceIntervals = Vector.fill(3)(10.0)
+          val prior3d = GaussianPrior.fromStandardDeviations[IO](
+            label              = "v",
+            values             = Vector.fill(3)(0.0),
+            standardDeviations = Vector.fill(3)(5.0)
           )
           for {
             likelihood3d <- GaussianLinearLikelihood.of[IO](
                               coefficients =
                                 (0 until 3).map(i => (0 until 3).map(j => if (i == j) 1.0 else 0.0).toVector).toVector,
-                              measurements   = Vector(1.0, 2.0, 3.0),
-                              uncertainties  = Vector.fill(3)(1.0),
-                              priorLabel     = "v",
-                              evalCacheDepth = None
+                              measurements       = Vector(1.0, 2.0, 3.0),
+                              standardDeviations = Vector.fill(3)(0.5),
+                              priorLabel         = "v",
+                              evalCacheDepth     = None
                             )
             posterior3d = UnnormalisedPosterior[IO](
                             priors      = Set[Prior[IO, ?]](prior3d),

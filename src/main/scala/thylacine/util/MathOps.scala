@@ -78,13 +78,18 @@ private[thylacine] object MathOps {
         (i.head + j) +: i
       }
 
-    val normalisedCdf = cdfReversed
-      .map(_ / cdfReversed.head)
-      .reverse
+    if (cdfReversed.head == 0d) {
+      val n = values.size
+      (0 until n).map(i => (i.toDouble / n, (i + 1).toDouble / n)).toVector
+    } else {
+      val normalisedCdf = cdfReversed
+        .map(_ / cdfReversed.head)
+        .reverse
 
-    normalisedCdf
-      .dropRight(1)
-      .zip(normalisedCdf.tail)
+      normalisedCdf
+        .dropRight(1)
+        .zip(normalisedCdf.tail)
+    }
   }
 
   private[thylacine] def modifyVectorIndex(input: Vector[Double])(index: Int, f: Double => Double): Vector[Double] =

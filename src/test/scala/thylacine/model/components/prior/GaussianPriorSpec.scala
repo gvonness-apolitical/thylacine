@@ -24,34 +24,34 @@ import org.scalatest.matchers.should
 class GaussianPriorSpec extends AnyFlatSpec with should.Matchers {
   "GaussianPrior" should "generate the correct mean and covariance for a 1D distribution" in {
     val fooPrior: GaussianPrior[IO] =
-      GaussianPrior.fromConfidenceIntervals[IO](
-        label               = "foo",
-        values              = Vector(2),
-        confidenceIntervals = Vector(3)
+      GaussianPrior.fromStandardDeviations[IO](
+        label              = "foo",
+        values             = Vector(2),
+        standardDeviations = Vector(1.5)
       )
 
     fooPrior.mean shouldBe Vector(2)
-    fooPrior.covariance shouldBe Vector(Math.pow(3.0 / 2, 2))
+    fooPrior.covariance shouldBe Vector(Math.pow(1.5, 2))
   }
 
   it should "generate the correct mean and covariance for a multi-variate distribution" in {
     val fooPrior: GaussianPrior[IO] =
-      GaussianPrior.fromConfidenceIntervals[IO](
-        label               = "foo",
-        values              = Vector(2, 3, 4),
-        confidenceIntervals = Vector(4, 3, 2)
+      GaussianPrior.fromStandardDeviations[IO](
+        label              = "foo",
+        values             = Vector(2, 3, 4),
+        standardDeviations = Vector(2, 1.5, 1)
       )
 
     fooPrior.mean shouldBe Vector(2, 3, 4)
-    fooPrior.covariance shouldBe Vector(4.0, 0, 0, 0, Math.pow(3.0 / 2, 2), 0, 0, 0, 1)
+    fooPrior.covariance shouldBe Vector(4.0, 0, 0, 0, Math.pow(1.5, 2), 0, 0, 0, 1)
   }
 
   it should "generate the correct gradient of the logPdf" in {
     val fooPrior: GaussianPrior[IO] =
-      GaussianPrior.fromConfidenceIntervals[IO](
-        label               = "foo",
-        values              = Vector(2, 3, 4),
-        confidenceIntervals = Vector(4, 3, 2)
+      GaussianPrior.fromStandardDeviations[IO](
+        label              = "foo",
+        values             = Vector(2, 3, 4),
+        standardDeviations = Vector(2, 1.5, 1)
       )
 
     fooPrior.rawLogPdfGradientAt(Vector(3, 2, 5)) shouldBe Vector(-.25, 4.0 / 9, -1)

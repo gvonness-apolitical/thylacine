@@ -21,10 +21,19 @@ import thylacine.model.core.values.*
 
 private[thylacine] case class FiniteDifferenceJacobian(
   private val evalAt: IndexedVectorCollection => VectorContainer,
-  differential: Double
+  differential: Double,
+  scheme: DifferencingScheme = DifferencingScheme.Forward
 ) {
 
   private[thylacine] def finiteDifferenceJacobianAt(
+    input: IndexedVectorCollection
+  ): IndexedMatrixCollection =
+    scheme match {
+      case DifferencingScheme.Forward => forwardDifferenceJacobianAt(input)
+      case DifferencingScheme.Central => centralDifferenceJacobianAt(input)
+    }
+
+  private def forwardDifferenceJacobianAt(
     input: IndexedVectorCollection
   ): IndexedMatrixCollection = {
     val currentEvaluation = evalAt(input)
@@ -45,6 +54,33 @@ private[thylacine] case class FiniteDifferenceJacobian(
             }
 
           identifier -> MatrixContainer(gradientComponents.reduce(_ ++ _), currentEvaluation.dimension, nudges.size)
+        }
+        .toMap
+
+    IndexedMatrixCollection(newMatrixCollectionMapping)
+  }
+
+  private def centralDifferenceJacobianAt(
+    input: IndexedVectorCollection
+  ): IndexedMatrixCollection = {
+    val newMatrixCollectionMapping =
+      input
+        .rawNudgeComponentsCentral(differential)
+        .toList
+        .map { case (identifier, nudgePairs) =>
+          val gradientComponents = (1 to nudgePairs.size)
+            .zip(nudgePairs)
+            .toList
+            .map { case (index, (plusNudge, minusNudge)) =>
+              evalAt(plusNudge)
+                .rawSubtract(evalAt(minusNudge))
+                .rawScalarProductWith(1 / (2 * differential))
+                .values
+                .map(k => (k._1, index) -> k._2)
+            }
+
+          val rangeDim = evalAt(input).dimension
+          identifier -> MatrixContainer(gradientComponents.reduce(_ ++ _), rangeDim, nudgePairs.size)
         }
         .toMap
 

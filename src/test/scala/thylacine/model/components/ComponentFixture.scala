@@ -32,10 +32,10 @@ object ComponentFixture {
   val fooUniformPriorLabel: String = "fooniform"
 
   val fooPrior: GaussianPrior[IO] =
-    GaussianPrior.fromConfidenceIntervals[IO](
-      label               = fooPriorLabel,
-      values              = Vector(1, 2),
-      confidenceIntervals = Vector(3, 5)
+    GaussianPrior.fromStandardDeviations[IO](
+      label              = fooPriorLabel,
+      values             = Vector(1, 2),
+      standardDeviations = Vector(1.5, 2.5)
     )
 
   val fooUniformPrior: UniformPrior[IO] =
@@ -46,11 +46,11 @@ object ComponentFixture {
     )
 
   def fooLikelihoodF(implicit stm: STM[IO]): IO[GaussianLinearLikelihood[IO]] = GaussianLinearLikelihood.of[IO](
-    coefficients   = Vector(Vector(1, 3), Vector(2, 4)),
-    measurements   = Vector(7, 10),
-    uncertainties  = Vector(0.01, 0.01),
-    priorLabel     = fooPriorLabel,
-    evalCacheDepth = None
+    coefficients       = Vector(Vector(1, 3), Vector(2, 4)),
+    measurements       = Vector(7, 10),
+    standardDeviations = Vector(0.005, 0.005),
+    priorLabel         = fooPriorLabel,
+    evalCacheDepth     = None
   )
 
   private def linearMapping(input: Map[String, Vector[Double]]): Vector[Double] =
@@ -72,27 +72,27 @@ object ComponentFixture {
     for {
       nonAnalyticForwardModel <- fooNonAnalyticForwardModelF
     } yield GaussianLikelihood[IO, NonLinearForwardModel[IO]](
-      forwardModel  = nonAnalyticForwardModel,
-      measurements  = Vector(7d, 10d),
-      uncertainties = Vector(0.01, 0.01)
+      forwardModel       = nonAnalyticForwardModel,
+      measurements       = Vector(7d, 10d),
+      standardDeviations = Vector(0.005, 0.005)
     )
 
   def fooTwoLikelihoodF(implicit stm: STM[IO]): IO[GaussianLinearLikelihood[IO]] = GaussianLinearLikelihood.of[IO](
-    coefficients   = Vector(Vector(1, 3), Vector(2, 4)),
-    measurements   = Vector(7, 10),
-    uncertainties  = Vector(0.01, 0.01),
-    priorLabel     = fooUniformPriorLabel,
-    evalCacheDepth = None
+    coefficients       = Vector(Vector(1, 3), Vector(2, 4)),
+    measurements       = Vector(7, 10),
+    standardDeviations = Vector(0.005, 0.005),
+    priorLabel         = fooUniformPriorLabel,
+    evalCacheDepth     = None
   )
 
   val barPriorLabel: String        = "bar"
   val barUniformPriorLabel: String = "barniform"
 
   val barPrior: GaussianPrior[IO] =
-    GaussianPrior.fromConfidenceIntervals[IO](
-      label               = barPriorLabel,
-      values              = Vector(5),
-      confidenceIntervals = Vector(.1)
+    GaussianPrior.fromStandardDeviations[IO](
+      label              = barPriorLabel,
+      values             = Vector(5),
+      standardDeviations = Vector(.05)
     )
 
   val barUniformPrior: UniformPrior[IO] =
@@ -103,19 +103,19 @@ object ComponentFixture {
     )
 
   def barLikelihoodF(implicit stm: STM[IO]): IO[GaussianLinearLikelihood[IO]] = GaussianLinearLikelihood.of[IO](
-    coefficients   = Vector(Vector(3), Vector(4)),
-    measurements   = Vector(15, 20),
-    uncertainties  = Vector(0.00001, 0.00001),
-    priorLabel     = barPriorLabel,
-    evalCacheDepth = None
+    coefficients       = Vector(Vector(3), Vector(4)),
+    measurements       = Vector(15, 20),
+    standardDeviations = Vector(0.000005, 0.000005),
+    priorLabel         = barPriorLabel,
+    evalCacheDepth     = None
   )
 
   def barTwoLikelihoodF(implicit stm: STM[IO]): IO[GaussianLinearLikelihood[IO]] = GaussianLinearLikelihood.of[IO](
-    coefficients   = Vector(Vector(3), Vector(4)),
-    measurements   = Vector(15, 20),
-    uncertainties  = Vector(0.00001, 0.00001),
-    priorLabel     = barUniformPriorLabel,
-    evalCacheDepth = None
+    coefficients       = Vector(Vector(3), Vector(4)),
+    measurements       = Vector(15, 20),
+    standardDeviations = Vector(0.000005, 0.000005),
+    priorLabel         = barUniformPriorLabel,
+    evalCacheDepth     = None
   )
 
   def analyticPosteriorF(implicit stm: STM[IO]): IO[GaussianAnalyticPosterior[IO]] =

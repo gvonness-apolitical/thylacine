@@ -26,14 +26,19 @@ import thylacine.model.core.values.IndexedVectorCollection
 import thylacine.model.core.values.IndexedVectorCollection.ModelParameterCollection
 import thylacine.model.sampling.hmcmc.HmcmcEngine
 
-import cats.effect.kernel.Async
+import cats.effect.kernel.{ Async, Deferred, Ref }
+import cats.syntax.all.*
 
-case class HmcmcSampledPosterior[F[_]: Async](
+case class HmcmcSampledPosterior[F[_]: Async] private[thylacine] (
   private[thylacine] val hmcmcConfig: HmcmcConfig,
   override protected val telemetryUpdateCallback: HmcmcTelemetryUpdate => F[Unit],
   private[thylacine] val seed: Map[String, Vector[Double]],
   override private[thylacine] val priors: Set[Prior[F, ?]],
-  override private[thylacine] val likelihoods: Set[Likelihood[F, ?, ?]]
+  override private[thylacine] val likelihoods: Set[Likelihood[F, ?, ?]],
+  override protected val burnInStarted: Ref[F, Boolean],
+  override protected val burnInResult: Deferred[F, ModelParameterCollection],
+  override protected val epsilonRef: Ref[F, Double],
+  override protected val daLogEpsilonBarRef: Ref[F, Double]
 ) extends AsyncImplicits[F]
     with Posterior[F, Prior[F, ?], Likelihood[F, ?, ?]]
     with HmcmcEngine[F] {
@@ -50,19 +55,52 @@ case class HmcmcSampledPosterior[F[_]: Async](
   final override protected val warmUpSimulationCount: Int =
     hmcmcConfig.warmupStepCount
 
+  final override protected val massMatrixDiagonal: Option[Vector[Double]] =
+    hmcmcConfig.massMatrixDiagonal
+
+  final override protected val adaptStepSize: Boolean =
+    hmcmcConfig.adaptStepSize
+
+  final override protected val targetAcceptanceRate: Double =
+    hmcmcConfig.targetAcceptanceRate
+
   final override protected val startingPoint: F[ModelParameterCollection] =
     Async[F].delay(IndexedVectorCollection(seed))
 }
 
 object HmcmcSampledPosterior {
 
-  def apply[F[_]: Async](
+  def of[F[_]: Async](
+    hmcmcConfig: HmcmcConfig,
+    telemetryUpdateCallback: HmcmcTelemetryUpdate => F[Unit],
+    seed: Map[String, Vector[Double]],
+    priors: Set[Prior[F, ?]],
+    likelihoods: Set[Likelihood[F, ?, ?]]
+  ): F[HmcmcSampledPosterior[F]] =
+    for {
+      started     <- Ref.of[F, Boolean](false)
+      deferred    <- Deferred[F, ModelParameterCollection]
+      epsRef      <- Ref.of[F, Double](hmcmcConfig.dynamicsSimulationStepSize)
+      daLogBarRef <- Ref.of[F, Double](Math.log(hmcmcConfig.dynamicsSimulationStepSize))
+    } yield HmcmcSampledPosterior(
+      hmcmcConfig             = hmcmcConfig,
+      telemetryUpdateCallback = telemetryUpdateCallback,
+      seed                    = seed,
+      priors                  = priors,
+      likelihoods             = likelihoods,
+      burnInStarted           = started,
+      burnInResult            = deferred,
+      epsilonRef              = epsRef,
+      daLogEpsilonBarRef      = daLogBarRef
+    )
+
+  def of[F[_]: Async](
     hmcmcConfig: HmcmcConfig,
     posterior: Posterior[F, Prior[F, ?], Likelihood[F, ?, ?]],
     telemetryUpdateCallback: HmcmcTelemetryUpdate => F[Unit],
     seed: Map[String, Vector[Double]]
-  ): HmcmcSampledPosterior[F] =
-    HmcmcSampledPosterior(
+  ): F[HmcmcSampledPosterior[F]] =
+    of(
       hmcmcConfig             = hmcmcConfig,
       telemetryUpdateCallback = telemetryUpdateCallback,
       seed                    = seed,

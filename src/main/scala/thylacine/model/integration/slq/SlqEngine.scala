@@ -466,8 +466,8 @@ private[thylacine] trait SlqEngine[F[_]] extends ModelParameterIntegrator[F] wit
       result        <- Async[F].delay(quadratureRaw.getIntegrationStats(integrand))
     } yield result.sum / result.size
 
-  override protected def sampleModelParameters(numberOfSamples: Int): F[Set[ModelParameterCollection]] =
-    (1 to numberOfSamples).toList.traverse(_ => getSimulatedSample).map(_.toSet)
+  override protected def sampleModelParameters(numberOfSamples: Int): F[Vector[ModelParameterCollection]] =
+    (1 to numberOfSamples).toList.traverse(_ => getSimulatedSample).map(_.toVector)
 
 }
 

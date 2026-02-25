@@ -110,6 +110,17 @@ private[thylacine] case class IndexedVectorCollection(
     }
   }
 
+  private[thylacine] def rawNudgeComponentsCentral(
+    diff: Double
+  ): Map[ModelParameterIdentifier, List[(IndexedVectorCollection, IndexedVectorCollection)]] = {
+    val posNudges = rawNudgeComponents(diff)
+    val negNudges = rawNudgeComponents(-diff)
+
+    posNudges.map { case (id, posNudgeList) =>
+      id -> posNudgeList.zip(negNudges(id))
+    }
+  }
+
   private[thylacine] def distanceTo(other: IndexedVectorCollection): Double =
     this.rawSubtract(other).magnitude
 }

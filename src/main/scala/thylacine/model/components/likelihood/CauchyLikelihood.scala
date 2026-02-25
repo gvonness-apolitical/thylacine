@@ -59,13 +59,13 @@ object CauchyLikelihood {
   def apply[F[_]: Async](
     forwardModel: ForwardModel[F],
     measurements: Vector[Double],
-    uncertainties: Vector[Double]
+    scaleParameters: Vector[Double]
   ): CauchyLikelihood[F] =
     CauchyLikelihood(
       posteriorTermIdentifier = TermIdentifier(UUID.randomUUID().toString),
       observations = RecordedData(
-        values                       = VectorContainer(measurements),
-        symmetricConfidenceIntervals = VectorContainer(uncertainties)
+        values             = VectorContainer(measurements),
+        standardDeviations = VectorContainer(scaleParameters)
       ),
       forwardModel = forwardModel
     )
@@ -73,7 +73,7 @@ object CauchyLikelihood {
   def of[F[_]: STM: Async](
     coefficients: Vector[Vector[Double]],
     measurements: Vector[Double],
-    uncertainties: Vector[Double],
+    scaleParameters: Vector[Double],
     priorLabel: String,
     evalCacheDepth: Option[Int]
   ): F[CauchyLikelihood[F]] =
@@ -85,8 +85,8 @@ object CauchyLikelihood {
                                 evalCacheDepth = evalCacheDepth
                               )
     } yield CauchyLikelihood(
-      measurements  = measurements,
-      uncertainties = uncertainties,
-      forwardModel  = linearForwardModel
+      measurements    = measurements,
+      scaleParameters = scaleParameters,
+      forwardModel    = linearForwardModel
     )
 }

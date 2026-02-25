@@ -47,17 +47,17 @@ class ConjugateGradientCauchySpec extends AsyncFreeSpec with AsyncIOSpec with Ma
         .runtime[IO]
         .flatMap { implicit stm =>
           val cauchyPrior = CauchyPrior[IO](
-            label               = "x",
-            values              = Vector(0.0),
-            confidenceIntervals = Vector(2.0)
+            label           = "x",
+            values          = Vector(0.0),
+            scaleParameters = Vector(1.0)
           )
           for {
             likelihood <- GaussianLinearLikelihood.of[IO](
-                            coefficients   = Vector(Vector(1.0)),
-                            measurements   = Vector(3.0),
-                            uncertainties  = Vector(0.01),
-                            priorLabel     = "x",
-                            evalCacheDepth = None
+                            coefficients       = Vector(Vector(1.0)),
+                            measurements       = Vector(3.0),
+                            standardDeviations = Vector(0.005),
+                            priorLabel         = "x",
+                            evalCacheDepth     = None
                           )
             unnormalisedPosterior = UnnormalisedPosterior[IO](
                                       priors      = Set[Prior[IO, ?]](cauchyPrior),

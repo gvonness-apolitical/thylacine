@@ -60,6 +60,16 @@ class MathOpsSpec extends AnyFreeSpec with Matchers {
       }
     }
 
+    "produce uniform bins for all-zero input" in {
+      val result = MathOps.vectorCdfStaircase(Vector(0.0, 0.0, 0.0))
+      result should have size 3
+      result(0) shouldBe (0.0, 1.0 / 3.0)
+      result(1)._1 shouldBe (1.0 / 3.0 +- tol)
+      result(1)._2 shouldBe (2.0 / 3.0 +- tol)
+      result(2)._1 shouldBe (2.0 / 3.0 +- tol)
+      result(2)._2 shouldBe (1.0 +- tol)
+    }
+
     "assign zero-width bins for zero-valued entries" in {
       val result = MathOps.vectorCdfStaircase(Vector(1.0, 0.0, 1.0))
       result should have size 3

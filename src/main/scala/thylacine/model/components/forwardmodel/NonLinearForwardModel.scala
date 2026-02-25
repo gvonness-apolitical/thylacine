@@ -19,7 +19,7 @@ package thylacine.model.components.forwardmodel
 
 import bengal.stm.STM
 import thylacine.model.core.StmImplicits
-import thylacine.model.core.computation.{ CachedComputation, FiniteDifferenceJacobian }
+import thylacine.model.core.computation.{ CachedComputation, DifferencingScheme, FiniteDifferenceJacobian }
 import thylacine.model.core.values.{ IndexedMatrixCollection, IndexedVectorCollection, VectorContainer }
 
 import cats.effect.kernel.Async
@@ -47,12 +47,13 @@ object NonLinearForwardModel {
     domainDimensions: Map[String, Int],
     rangeDimension: Int,
     evalCacheDepth: Option[Int],
-    jacobianCacheDepth: Option[Int]
+    jacobianCacheDepth: Option[Int],
+    differencingScheme: DifferencingScheme = DifferencingScheme.Forward
   ): F[NonLinearForwardModel[F]] = {
     def transformedEval(input: IndexedVectorCollection): VectorContainer =
       VectorContainer(evaluation(input.index.map(i => i._1.value -> i._2.scalaVector)))
 
-    val jacobianCalculation = FiniteDifferenceJacobian(transformedEval, differential)
+    val jacobianCalculation = FiniteDifferenceJacobian(transformedEval, differential, differencingScheme)
 
     for {
       evalCache <- CachedComputation.of(transformedEval, evalCacheDepth)

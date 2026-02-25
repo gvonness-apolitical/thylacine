@@ -99,6 +99,21 @@ class MatrixContainerSpec extends AnyFlatSpec with should.Matchers {
     )
   }
 
+  it should "diagonal merge non-square matrices" in {
+    val m1     = MatrixContainer(Vector(Vector(1.0, 2.0, 3.0), Vector(4.0, 5.0, 6.0)))
+    val m2     = MatrixContainer(Vector(Vector(7.0, 8.0), Vector(9.0, 10.0), Vector(11.0, 12.0)))
+    val result = m1.diagonalMergeWith(m2)
+    result.rowTotalNumber shouldBe 5
+    result.columnTotalNumber shouldBe 5
+    result.genericScalaRepresentation shouldBe Vector(
+      Vector(1.0, 2.0, 3.0, 0.0, 0.0),
+      Vector(4.0, 5.0, 6.0, 0.0, 0.0),
+      Vector(0.0, 0.0, 0.0, 7.0, 8.0),
+      Vector(0.0, 0.0, 0.0, 9.0, 10.0),
+      Vector(0.0, 0.0, 0.0, 11.0, 12.0)
+    )
+  }
+
   it should "handle sparse values correctly" in {
     val mc        = MatrixContainer(Vector(Vector(0.0, 1.0), Vector(2.0, 0.0)))
     val validated = mc.getValidated

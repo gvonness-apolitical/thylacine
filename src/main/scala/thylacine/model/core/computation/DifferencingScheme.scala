@@ -15,14 +15,11 @@
  */
 
 package ai.entrolution
-package thylacine.config
+package thylacine.model.core.computation
 
-case class HmcmcConfig(
-  stepsBetweenSamples: Int,
-  stepsInDynamicsSimulation: Int,
-  warmupStepCount: Int,
-  dynamicsSimulationStepSize: Double,
-  massMatrixDiagonal: Option[Vector[Double]] = None,
-  adaptStepSize: Boolean                     = false,
-  targetAcceptanceRate: Double               = 0.65
-)
+sealed trait DifferencingScheme
+
+object DifferencingScheme {
+  case object Forward extends DifferencingScheme
+  case object Central extends DifferencingScheme
+}

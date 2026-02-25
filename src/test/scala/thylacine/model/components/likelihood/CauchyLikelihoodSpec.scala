@@ -28,14 +28,14 @@ import org.scalatest.matchers.should.Matchers
 
 class CauchyLikelihoodSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
 
-  // 1D identity forward model, measurement=3, uncertainty=2 (variance=1)
+  // 1D identity forward model, measurement=3, scale=1 (variance=1)
   private def cauchyLikelihoodF(implicit stm: STM[IO]): IO[CauchyLikelihood[IO]] =
     CauchyLikelihood.of[IO](
-      coefficients   = Vector(Vector(1.0)),
-      measurements   = Vector(3.0),
-      uncertainties  = Vector(2.0),
-      priorLabel     = "x",
-      evalCacheDepth = None
+      coefficients    = Vector(Vector(1.0)),
+      measurements    = Vector(3.0),
+      scaleParameters = Vector(1.0),
+      priorLabel      = "x",
+      evalCacheDepth  = None
     )
 
   "CauchyLikelihood" - {

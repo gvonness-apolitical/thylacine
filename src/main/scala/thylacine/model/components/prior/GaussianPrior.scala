@@ -57,17 +57,17 @@ case class GaussianPrior[F[_]: Async](
 
 object GaussianPrior {
 
-  def fromConfidenceIntervals[F[_]: Async](
+  def fromStandardDeviations[F[_]: Async](
     label: String,
     values: Vector[Double],
-    confidenceIntervals: Vector[Double]
+    standardDeviations: Vector[Double]
   ): GaussianPrior[F] = {
-    require(values.size == confidenceIntervals.size, "Values and confidence intervals must have the same size")
+    require(values.size == standardDeviations.size, "Values and standard deviations must have the same size")
     GaussianPrior(
       identifier = ModelParameterIdentifier(label),
       priorData = RecordedData(
-        values                       = VectorContainer(values),
-        symmetricConfidenceIntervals = VectorContainer(confidenceIntervals)
+        values             = VectorContainer(values),
+        standardDeviations = VectorContainer(standardDeviations)
       )
     )
   }

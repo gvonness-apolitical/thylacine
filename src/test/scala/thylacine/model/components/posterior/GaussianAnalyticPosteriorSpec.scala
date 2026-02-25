@@ -64,18 +64,18 @@ class GaussianAnalyticPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with 
       STM
         .runtime[IO]
         .flatMap { implicit stm =>
-          val prior = GaussianPrior.fromConfidenceIntervals[IO](
-            label               = "x",
-            values              = Vector(0.0),
-            confidenceIntervals = Vector(2.0) // variance = 1
+          val prior = GaussianPrior.fromStandardDeviations[IO](
+            label              = "x",
+            values             = Vector(0.0),
+            standardDeviations = Vector(1.0) // variance = 1
           )
           for {
             likelihood <- GaussianLinearLikelihood.of[IO](
-                            coefficients   = Vector(Vector(1.0)),
-                            measurements   = Vector(2.0),
-                            uncertainties  = Vector(2.0), // variance = 1
-                            priorLabel     = "x",
-                            evalCacheDepth = None
+                            coefficients       = Vector(Vector(1.0)),
+                            measurements       = Vector(2.0),
+                            standardDeviations = Vector(1.0), // variance = 1
+                            priorLabel         = "x",
+                            evalCacheDepth     = None
                           )
             posterior = GaussianAnalyticPosterior[IO](
                           priors      = Set(prior),

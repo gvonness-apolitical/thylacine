@@ -76,8 +76,12 @@ trait Prior[F[_], +D <: Distribution]
   private val sampleModelParameters: F[ModelParameterCollection] =
     rawSampleModelParameters.map(IndexedVectorCollection(identifier, _))
 
-  final override def sampleModelParameters(numberOfSamples: Int): F[Set[ModelParameterCollection]] =
-    (1 to numberOfSamples).toList.traverse(_ => sampleModelParameters).map(_.toSet)
+  final override def sampleModelParameters(numberOfSamples: Int): F[Vector[ModelParameterCollection]] =
+    (1 to numberOfSamples).toList.traverse(_ => sampleModelParameters).map(_.toVector)
+
+  // Optional parameter bounds for this prior (lower, upper).
+  // Used by HMCMC boundary reflection for uniform priors.
+  private[thylacine] def parameterBounds: Option[(VectorContainer, VectorContainer)] = None
 
   // testing
   private[thylacine] def rawLogPdfGradientAt(input: Vector[Double]): Vector[Double] =

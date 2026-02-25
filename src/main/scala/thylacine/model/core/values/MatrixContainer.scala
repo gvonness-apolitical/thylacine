@@ -94,7 +94,7 @@ private[thylacine] case class MatrixContainer(
   ): MatrixContainer =
     MatrixContainer(
       values ++ input.getValidated.values.map(i => (i._1._1 + rowTotalNumber, i._1._2 + columnTotalNumber) -> i._2),
-      rowTotalNumber    = rowTotalNumber + input.columnTotalNumber,
+      rowTotalNumber    = rowTotalNumber + input.rowTotalNumber,
       columnTotalNumber = columnTotalNumber + input.columnTotalNumber
     ).getValidated
 }
