@@ -54,7 +54,7 @@ private[thylacine] trait GoldenSectionSearch[F[_]] extends LineProbe[F] with Lin
     direction: Vector[Double],
     probeDifferential: Double,
     directionNormalised: Boolean = false,
-    depth: Int = 0
+    depth: Int                   = 0
   ): F[(Double, Vector[Double])] = {
     if (depth >= 50 || probeDifferential.isInfinite || probeDifferential.isNaN) {
       Async[F].pure(startPointEvaluation)
@@ -80,7 +80,7 @@ private[thylacine] trait GoldenSectionSearch[F[_]] extends LineProbe[F] with Lin
             normalisedDirection,
             probeDifferential * lineProbeExpansionFactor,
             directionNormalised = true,
-            depth = depth + 1
+            depth               = depth + 1
           )
         case (forwardPointResult, reversePointResult) =>
           searchColinearTriple(

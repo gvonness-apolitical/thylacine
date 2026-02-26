@@ -33,7 +33,7 @@ private[thylacine] trait LineProbe[F[_]] {
     pt1: LineEvaluationResult,
     pt2: LineEvaluationResult,
     ordered: Boolean = false,
-    depth: Int = 0
+    depth: Int       = 0
   ): F[LineEvaluationTriple] = {
     val (lowerPoint, upperPoint) =
       if (ordered || pt1.result < pt2.result) {
