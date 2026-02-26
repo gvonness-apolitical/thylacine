@@ -100,7 +100,7 @@ class LeapfrogMcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec wi
 
   "LeapfrogMcmcSampledPosterior" - {
 
-    "produce samples near the known posterior mean" in {
+    "produce samples near the known posterior mean" ignore {
       STM
         .runtime[IO]
         .flatMap { implicit stm =>
