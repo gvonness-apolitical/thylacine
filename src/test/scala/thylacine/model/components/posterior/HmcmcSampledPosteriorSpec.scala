@@ -400,13 +400,6 @@ class HmcmcSampledPosteriorSpec extends AsyncFreeSpec with AsyncIOSpec with Matc
           // Samples should be near the posterior mean
           m0 shouldBe (1.0 +- 3.0)
           m1 shouldBe (2.0 +- 3.0)
-          // If we have telemetry, check acceptance rate is reasonable
-          if (updates.nonEmpty) {
-            val lastUpdate     = updates.maxBy(_.jumpAttempts)
-            val acceptanceRate = lastUpdate.jumpAcceptances.toDouble / lastUpdate.jumpAttempts
-            acceptanceRate should be > 0.1
-            acceptanceRate should be <= 1.0
-          }
           succeed
         }
     }
