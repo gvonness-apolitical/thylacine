@@ -49,4 +49,19 @@ case class MdsOptimisedPosterior[F[_]: Async](
     mdsConfig.numberOfPriorSamplesToSetStartingPoint.getOrElse(100)
 }
 
-object MdsOptimisedPosterior
+object MdsOptimisedPosterior {
+
+  def apply[F[_]: Async](
+    mdsConfig: MdsConfig,
+    posterior: Posterior[F, Prior[F, ?], Likelihood[F, ?, ?]],
+    iterationUpdateCallback: OptimisationTelemetryUpdate => F[Unit],
+    isConvergedCallback: Unit => F[Unit]
+  ): MdsOptimisedPosterior[F] =
+    MdsOptimisedPosterior(
+      mdsConfig               = mdsConfig,
+      iterationUpdateCallback = iterationUpdateCallback,
+      isConvergedCallback     = isConvergedCallback,
+      priors                  = posterior.priors,
+      likelihoods             = posterior.likelihoods
+    )
+}

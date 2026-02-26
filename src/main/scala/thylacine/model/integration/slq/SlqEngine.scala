@@ -54,6 +54,17 @@ private[thylacine] trait SlqEngine[F[_]] extends ModelParameterIntegrator[F] wit
 
   import SlqEngine.*
 
+  private case class SampleAnalysisTelemetry(
+    samplePoolSnapshot: Map[Double, ModelParameterCollection],
+    quadratures: QuadratureIntegrator
+  )
+
+  private case class ConvergenceCheckTelemetry(
+    quadratures: QuadratureIntegrator,
+    iterationCount: Int,
+    domainExhausted: Boolean
+  )
+
   /*
    * - - -- --- ----- -------- -------------
    * Configuration
@@ -214,18 +225,18 @@ private[thylacine] trait SlqEngine[F[_]] extends ModelParameterIntegrator[F] wit
             telemetry <- (for {
                            samples      <- samplePool.get
                            integrations <- quadratureIntegrations.get
-                         } yield (samples, scalingFactorTelemetry, integrations)).commit
-            negEntStats <- Async[F].delay(telemetry._3.negativeEntropyStats)
+                         } yield SampleAnalysisTelemetry(samples, integrations)).commit
+            negEntStats <- Async[F].delay(telemetry.quadratures.negativeEntropyStats)
             result <- slqTelemetryUpdateCallback(
                         SlqTelemetryUpdate(
                           negEntropyAvg                 = negEntStats.sum.toDouble / negEntStats.size,
                           logPdf                        = logPdf,
-                          samplePoolMinimumLogPdf       = telemetry._1.keySet.min,
-                          domainVolumeScaling           = telemetry._2.currentScaleFactor,
-                          acceptancesSinceDomainRebuild = telemetry._2.acceptancesSinceLastRebuild,
-                          samplePoolSize                = telemetry._1.size,
+                          samplePoolMinimumLogPdf       = telemetry.samplePoolSnapshot.keySet.min,
+                          domainVolumeScaling           = scalingFactorTelemetry.currentScaleFactor,
+                          acceptancesSinceDomainRebuild = scalingFactorTelemetry.acceptancesSinceLastRebuild,
+                          samplePoolSize                = telemetry.samplePoolSnapshot.size,
                           domainCubeCount               = domain.pointsInCube.size,
-                          iterationCount                = telemetry._3.logPdfs.size
+                          iterationCount                = telemetry.quadratures.logPdfs.size
                         )
                       )
           } yield result
@@ -267,11 +278,11 @@ private[thylacine] trait SlqEngine[F[_]] extends ModelParameterIntegrator[F] wit
                      iterationCount <- logPdfResults.get.map(_.size)
                      domainExhausted <-
                        sampleDomainScalingState.get.map(_.isConverged)
-                   } yield (quadratures, iterationCount, domainExhausted)).commit
-      negEntStats <- Async[F].delay(telemetry._1.negativeEntropyStats)
+                   } yield ConvergenceCheckTelemetry(quadratures, iterationCount, domainExhausted)).commit
+      negEntStats <- Async[F].delay(telemetry.quadratures.negativeEntropyStats)
       _ <- isConverged
              .set(
-               testConverged(telemetry._2, slqSamplePoolSize, negEntStats) || telemetry._3
+               testConverged(telemetry.iterationCount, slqSamplePoolSize, negEntStats) || telemetry.domainExhausted
              )
              .commit
     } yield ()

@@ -85,18 +85,18 @@ import cats.effect.{IO, IOApp}
 object BayesianUpdateExample extends IOApp.Simple {
   def run: IO[Unit] =
     STM.runtime[IO].flatMap { implicit stm =>
-      val prior = GaussianPrior.fromConfidenceIntervals[IO](
-        label               = "x",
-        values              = Vector(0.0),
-        confidenceIntervals = Vector(2.0) // 95% CI width of 2 => variance = 1
+      val prior = GaussianPrior.fromStandardDeviations[IO](
+        label              = "x",
+        values             = Vector(0.0),
+        standardDeviations = Vector(1.0) // standard deviation of 1 => variance = 1
       )
       for {
         likelihood <- GaussianLinearLikelihood.of[IO](
-                        coefficients   = Vector(Vector(1.0)),
-                        measurements   = Vector(2.0),
-                        uncertainties  = Vector(2.0), // 95% CI width of 2 => variance = 1
-                        priorLabel     = "x",
-                        evalCacheDepth = None
+                        coefficients       = Vector(Vector(1.0)),
+                        measurements       = Vector(2.0),
+                        standardDeviations = Vector(1.0), // standard deviation of 1 => variance = 1
+                        priorLabel         = "x",
+                        evalCacheDepth     = None
                       )
         posterior = GaussianAnalyticPosterior[IO](
                       priors      = Set(prior),
@@ -114,9 +114,32 @@ object BayesianUpdateExample extends IOApp.Simple {
 
 ---
 
+## Algorithm Selection Guide
+
+Thylacine provides several posterior analysis strategies. Choose based on your problem characteristics:
+
+| Posterior Type | Method | Best For | Gradient Required | Dimensionality |
+|---------------|--------|----------|-------------------|----------------|
+| `GaussianAnalyticPosterior` | Analytic | Gaussian priors + linear forward models | No | Any |
+| `HmcmcSampledPosterior` | Hamiltonian Monte Carlo | Smooth, continuous posteriors | Yes | Medium–High |
+| `LeapfrogMcmcSampledPosterior` | Multi-chain Leapfrog MCMC | Multimodal posteriors, parallel exploration | Yes | Medium–High |
+| `SlqIntegratedPosterior` | Stochastic Lebesgue Quadrature | Evidence (marginal likelihood) computation | No | Low–Medium |
+| `ConjugateGradientOptimisedPosterior` | Nonlinear conjugate gradient | MAP estimation, smooth objectives | Yes | Medium–High |
+| `CoordinateSlideOptimisedPosterior` | Coordinate line search | MAP estimation, separable objectives | No | Low–Medium |
+| `HookeAndJeevesOptimisedPosterior` | Hooke & Jeeves pattern search | MAP estimation, non-smooth objectives | No | Low–Medium |
+| `MdsOptimisedPosterior` | Multi-direction search (Nelder-Mead variant) | MAP estimation, derivative-free | No | Low |
+
+**General guidance:**
+- Start with `GaussianAnalyticPosterior` if your forward model is linear and all distributions are Gaussian — it gives an exact solution.
+- For sampling, prefer `HmcmcSampledPosterior` when gradients are available. Use `LeapfrogMcmcSampledPosterior` for multi-chain exploration.
+- For optimisation (MAP point estimates), `ConjugateGradientOptimisedPosterior` is generally most efficient when gradients are available. Use derivative-free methods (`HookeAndJeeves`, `MDS`, `CoordinateSlide`) when they are not.
+- `SlqIntegratedPosterior` computes the Bayesian evidence integral, useful for model comparison.
+
+---
+
 ## Framework Documentation
 
-API documentation is generated during CI for each Scala version. For questions and discussion, see [GitHub Discussions](https://github.com/Entrolution/thylacine/discussions).
+For questions and discussion, see [GitHub Discussions](https://github.com/Entrolution/thylacine/discussions).
 
 ---
 ---

@@ -32,9 +32,11 @@ object Dependencies {
   private val scalaTest: ModuleID =
     "org.scalatest" %% "scalatest" % scalaTestVersion % "test"
 
+  // Only DMatrixRMaj, CommonOps_DDRM, and LinearSolverFactory_DDRM are used
   private val ejml: ModuleID =
-    "org.ejml" % "ejml-all" % ejmlVersion
+    "org.ejml" % "ejml-ddense" % ejmlVersion
 
+  // Used by QuadratureIntegrator (SLQ parallel quadrature) and UniformDistribution (parallel sampling)
   private val parallelCollections: ModuleID =
     "org.scala-lang.modules" %% "scala-parallel-collections" % parallelCollectionsVersion
 

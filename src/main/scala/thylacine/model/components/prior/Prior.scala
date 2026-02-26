@@ -83,7 +83,7 @@ trait Prior[F[_], +D <: Distribution]
   // Used by HMCMC boundary reflection for uniform priors.
   private[thylacine] def parameterBounds: Option[(VectorContainer, VectorContainer)] = None
 
-  // testing
+  // Convenience accessor for test verification of gradient calculations
   private[thylacine] def rawLogPdfGradientAt(input: Vector[Double]): Vector[Double] =
     priorDistribution.logPdfGradientAt(VectorContainer(input)).scalaVector
 }

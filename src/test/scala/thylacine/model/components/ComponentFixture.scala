@@ -204,9 +204,8 @@ object ComponentFixture {
       unnormalisedPosterior <- unnormalisedPosteriorF
     } yield MdsOptimisedPosterior[IO](
       mdsConfig               = mdsConfig,
+      posterior               = unnormalisedPosterior,
       iterationUpdateCallback = _ => IO.unit,
-      isConvergedCallback     = _ => IO.unit,
-      priors                  = unnormalisedPosterior.priors,
-      likelihoods             = unnormalisedPosterior.likelihoods
+      isConvergedCallback     = _ => IO.unit
     )
 }

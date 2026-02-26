@@ -51,7 +51,8 @@ sbt +mimaReportBinaryIssues
 3. Make your changes
 4. Ensure `sbt +test` passes
 5. Ensure `sbt scalafmtAll` has been run
-6. Open a pull request against `main`
+6. Ensure `sbt headerCheckAll` passes (license headers)
+7. Open a pull request against `main`
 
 ### PR Expectations
 
@@ -62,7 +63,7 @@ sbt +mimaReportBinaryIssues
 
 ## Code Style
 
-This project uses [scalafmt](https://scalameta.org/scalafmt/) and [scalafix](https://scalacenter.github.io/scalafix/) for code formatting and linting. Configuration is in `.scalafmt.conf` and `.scalafix.conf`. Run `sbt scalafmtAll` before committing to ensure consistency.
+This project uses [scalafmt](https://scalameta.org/scalafmt/) for code formatting. Configuration is in `.scalafmt.conf`. Run `sbt scalafmtAll` before committing to ensure consistency. Import ordering rules are configured in `.scalafix.conf`.
 
 ## License
 
