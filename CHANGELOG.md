@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.15.1] - 2026-02-26
+
+### Fixed
+
+- MiMa binary compatibility check failing on unpublished 0.15.x artifact (`tlVersionIntroduced` updated for both Scala versions)
+- Flaky `LeapfrogMcmcSampledPosterior` posterior mean test marked as ignored to prevent CI timeouts
+
 ## [0.15.0] - 2026-02-26
 
 ### Fixed
