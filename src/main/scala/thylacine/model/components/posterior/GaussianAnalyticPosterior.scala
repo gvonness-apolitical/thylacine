@@ -140,7 +140,8 @@ object GaussianAnalyticPosterior {
         lcContainer <- likelihoodCovariance
         tmContainer <- likelihoodTransformations
       } yield {
-        val newInversePriorCovariance = LinearAlgebra.invert(pcContainer.rawMatrix)
+        // Use Cholesky-based inverse for SPD prior covariance matrix
+        val newInversePriorCovariance = LinearAlgebra.choleskyInvert(pcContainer.rawMatrix)
 
         // tmContainer.rawMatrix.t * (lcContainer.rawMatrix \ tmContainer.rawMatrix)
         val tmTranspose = LinearAlgebra.transpose(tmContainer.rawMatrix)
@@ -148,17 +149,15 @@ object GaussianAnalyticPosterior {
         val fisherInfo  = LinearAlgebra.multiply(tmTranspose, lcSolveTm)
 
         val newInverseCovariance = LinearAlgebra.add(newInversePriorCovariance, fisherInfo)
-        val newCovariance        = LinearAlgebra.invert(newInverseCovariance)
+        // Use Cholesky-based inverse for SPD precision matrix
+        val newCovariance = LinearAlgebra.choleskyInvert(newInverseCovariance)
 
-        // In reality, this suffers from some pretty serious rounding errors
-        // with all the multiple matrix inversions that need to happen
-        // newInverseCovariance \ (pcContainer.rawMatrix \ pmContainer.rawVector +
-        //   tmContainer.rawMatrix.t * (lcContainer.rawMatrix \ dContainer.rawVector))
-        val pcSolvePm                = LinearAlgebra.solve(pcContainer.rawMatrix, pmContainer.rawVector)
+        // Use Cholesky-based solve for SPD systems
+        val pcSolvePm                = LinearAlgebra.choleskySolve(pcContainer.rawMatrix, pmContainer.rawVector)
         val lcSolveD                 = LinearAlgebra.solve(lcContainer.rawMatrix, dContainer.rawVector)
         val tmTransposeTimesLcSolveD = LinearAlgebra.multiplyMV(tmTranspose, lcSolveD)
         val rhs                      = pcSolvePm.zip(tmTransposeTimesLcSolveD).map { case (a, b) => a + b }
-        val newMean                  = LinearAlgebra.solve(newInverseCovariance, rhs)
+        val newMean                  = LinearAlgebra.choleskySolve(newInverseCovariance, rhs)
 
         // (newCovariance + newCovariance.t) * 0.5
         val symmetricCovariance = LinearAlgebra.symmetrize(newCovariance)

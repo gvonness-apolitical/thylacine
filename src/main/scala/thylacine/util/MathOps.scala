@@ -121,4 +121,10 @@ private[thylacine] object MathOps {
   private[thylacine] def nextInt(bound: Int): Int =
     randomGenerator.nextInt(bound)
 
+  private[thylacine] def shuffle[A](xs: List[A]): List[A] =
+    randomGenerator.shuffle(xs)
+
+  private[thylacine] def setSeed(seed: Long): Unit =
+    randomGenerator.setSeed(seed)
+
 }

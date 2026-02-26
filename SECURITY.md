@@ -21,4 +21,7 @@ If you discover a security vulnerability in Thylacine, please report it responsi
 
 ## Supported Versions
 
-Security fixes are applied to the latest release only.
+| Version | Supported |
+|---------|-----------|
+| 0.15.x  | Yes       |
+| < 0.15  | No        |

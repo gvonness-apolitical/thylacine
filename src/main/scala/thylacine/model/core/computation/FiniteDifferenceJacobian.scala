@@ -63,6 +63,8 @@ private[thylacine] case class FiniteDifferenceJacobian(
   private def centralDifferenceJacobianAt(
     input: IndexedVectorCollection
   ): IndexedMatrixCollection = {
+    val baseResult = evalAt(input)
+    val rangeDim   = baseResult.dimension
     val newMatrixCollectionMapping =
       input
         .rawNudgeComponentsCentral(differential)
@@ -79,7 +81,6 @@ private[thylacine] case class FiniteDifferenceJacobian(
                 .map(k => (k._1, index) -> k._2)
             }
 
-          val rangeDim = evalAt(input).dimension
           identifier -> MatrixContainer(gradientComponents.reduce(_ ++ _), rangeDim, nudgePairs.size)
         }
         .toMap

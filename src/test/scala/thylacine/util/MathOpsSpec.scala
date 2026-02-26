@@ -76,4 +76,28 @@ class MathOpsSpec extends AnyFreeSpec with Matchers {
       result(1)._1 shouldBe (result(1)._2 +- tol)
     }
   }
+
+  "setSeed" - {
+    "produce identical sequences for the same seed" in {
+      MathOps.setSeed(42L)
+      val firstRun = (1 to 10).map(_ => MathOps.nextDouble).toVector
+
+      MathOps.setSeed(42L)
+      val secondRun = (1 to 10).map(_ => MathOps.nextDouble).toVector
+
+      firstRun shouldBe secondRun
+    }
+
+    "produce identical shuffle results for the same seed" in {
+      val items = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+      MathOps.setSeed(123L)
+      val firstShuffle = MathOps.shuffle(items)
+
+      MathOps.setSeed(123L)
+      val secondShuffle = MathOps.shuffle(items)
+
+      firstShuffle shouldBe secondShuffle
+    }
+  }
 }

@@ -32,7 +32,8 @@ private[thylacine] trait LineProbe[F[_]] {
   protected def probeLine(
     pt1: LineEvaluationResult,
     pt2: LineEvaluationResult,
-    ordered: Boolean = false
+    ordered: Boolean = false,
+    depth: Int       = 0
   ): F[LineEvaluationTriple] = {
     val (lowerPoint, upperPoint) =
       if (ordered || pt1.result < pt2.result) {
@@ -41,33 +42,43 @@ private[thylacine] trait LineProbe[F[_]] {
         (pt2, pt1)
       }
 
-    val probePointVector: Vector[Double] =
-      upperPoint.vectorArgument.zip(lowerPoint.vectorArgument).map {
-        case (upperPointCoordinate, lowerPointCoordinate) =>
-          lineProbeExpansionFactor * (upperPointCoordinate - lowerPointCoordinate) + upperPointCoordinate
+    if (depth >= 50) {
+      Async[F].pure {
+        LineEvaluationTriple(
+          firstEndPoint  = lowerPoint,
+          middlePoint    = upperPoint,
+          secondEndPoint = upperPoint
+        )
       }
+    } else {
+      val probePointVector: Vector[Double] =
+        upperPoint.vectorArgument.zip(lowerPoint.vectorArgument).map {
+          case (upperPointCoordinate, lowerPointCoordinate) =>
+            lineProbeExpansionFactor * (upperPointCoordinate - lowerPointCoordinate) + upperPointCoordinate
+        }
 
-    val probePointModelParameters: ModelParameterCollection =
-      vectorValuesToModelParameterCollection(probePointVector)
+      val probePointModelParameters: ModelParameterCollection =
+        vectorValuesToModelParameterCollection(probePointVector)
 
-    val probeEvaluationF: F[Double] = logPdfAt(probePointModelParameters)
+      val probeEvaluationF: F[Double] = logPdfAt(probePointModelParameters)
 
-    probeEvaluationF.flatMap { probeEvaluation =>
-      val evaluationResult = LineEvaluationResult(
-        result                 = probeEvaluation,
-        vectorArgument         = probePointVector,
-        modelParameterArgument = probePointModelParameters
-      )
+      probeEvaluationF.flatMap { probeEvaluation =>
+        val evaluationResult = LineEvaluationResult(
+          result                 = probeEvaluation,
+          vectorArgument         = probePointVector,
+          modelParameterArgument = probePointModelParameters
+        )
 
-      if (probeEvaluation >= upperPoint.result) {
-        probeLine(upperPoint, evaluationResult, ordered = true)
-      } else {
-        Async[F].delay {
-          LineEvaluationTriple(
-            firstEndPoint  = lowerPoint,
-            middlePoint    = upperPoint,
-            secondEndPoint = evaluationResult
-          )
+        if (probeEvaluation >= upperPoint.result) {
+          probeLine(upperPoint, evaluationResult, ordered = true, depth = depth + 1)
+        } else {
+          Async[F].delay {
+            LineEvaluationTriple(
+              firstEndPoint  = lowerPoint,
+              middlePoint    = upperPoint,
+              secondEndPoint = evaluationResult
+            )
+          }
         }
       }
     }

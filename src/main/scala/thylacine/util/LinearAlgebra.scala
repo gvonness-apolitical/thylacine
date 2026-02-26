@@ -19,6 +19,7 @@ package thylacine.util
 
 import org.ejml.data.DMatrixRMaj
 import org.ejml.dense.row.CommonOps_DDRM
+import org.ejml.dense.row.factory.LinearSolverFactory_DDRM
 
 private[thylacine] object LinearAlgebra {
 
@@ -147,4 +148,33 @@ private[thylacine] object LinearAlgebra {
 
   def columnVectorToArray(v: DMatrixRMaj): Array[Double] =
     v.getData.take(v.numRows)
+
+  // Cholesky-based solve for symmetric positive definite matrices.
+  // Solves A * x = b for x where A is SPD.
+  def choleskySolve(a: DMatrixRMaj, b: Array[Double]): Array[Double] = {
+    val solver = LinearSolverFactory_DDRM.chol(a.numRows)
+    if (!solver.setA(a.copy())) {
+      throw new RuntimeException(
+        s"Cholesky decomposition failed: ${a.numRows}x${a.numCols} matrix may not be symmetric positive definite"
+      )
+    }
+    val bMatrix = new DMatrixRMaj(b.length, 1)
+    bMatrix.setData(b)
+    val result = new DMatrixRMaj(a.numCols, 1)
+    solver.solve(bMatrix, result)
+    result.getData.take(a.numCols)
+  }
+
+  // Cholesky-based inverse for symmetric positive definite matrices.
+  def choleskyInvert(a: DMatrixRMaj): DMatrixRMaj = {
+    val solver = LinearSolverFactory_DDRM.chol(a.numRows)
+    if (!solver.setA(a.copy())) {
+      throw new RuntimeException(
+        s"Cholesky decomposition failed: ${a.numRows}x${a.numCols} matrix may not be symmetric positive definite"
+      )
+    }
+    val result = new DMatrixRMaj(a.numRows, a.numCols)
+    solver.invert(result)
+    result
+  }
 }

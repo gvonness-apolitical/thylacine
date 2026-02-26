@@ -43,6 +43,8 @@ trait MdsEngine[F[_]] extends ModelParameterOptimizer[F] {
 
   protected def isConvergedCallback: Unit => F[Unit]
 
+  protected def maxIterations: Int = 10000
+
   private def runEvaluation(indexAndPosition: (Int, ModelParameterCollection)): F[(Int, Double)] =
     for {
       result <- logPdfAt(indexAndPosition._2)
@@ -57,7 +59,8 @@ trait MdsEngine[F[_]] extends ModelParameterOptimizer[F] {
 
   private def evaluateSimplex(
     simplex: ModelParameterSimplex,
-    best: (Int, Double)
+    best: (Int, Double),
+    iteration: Int = 0
   ): F[((Int, Double), ModelParameterSimplex)] = {
     (for {
       reflectedSimplex <- Async[F].delay(simplex.reflectAbout(best._1))
@@ -93,8 +96,10 @@ trait MdsEngine[F[_]] extends ModelParameterOptimizer[F] {
     } yield (bestAndSimplex._2, bestAndSimplex._1, convergenceMeasure)).flatMap {
       case (simplex, best, convergenceMeasure) if convergenceMeasure <= convergenceThreshold =>
         isConvergedCallback(()).start.void >> Async[F].pure((best, simplex))
+      case (simplex, best, _) if iteration >= maxIterations =>
+        Async[F].pure((best, simplex))
       case (simplex, best, _) =>
-        evaluateSimplex(simplex, best)
+        evaluateSimplex(simplex, best, iteration + 1)
     }
   }
 

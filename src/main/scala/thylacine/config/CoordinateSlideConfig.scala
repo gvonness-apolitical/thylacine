@@ -22,4 +22,6 @@ case class CoordinateSlideConfig(
   goldenSectionTolerance: Double,
   lineProbeExpansionFactor: Double,
   numberOfPriorSamplesToSetScale: Option[Int]
-)
+) {
+  require(goldenSectionTolerance > 0, s"goldenSectionTolerance must be > 0, got $goldenSectionTolerance")
+}

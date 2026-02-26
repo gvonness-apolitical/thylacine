@@ -29,7 +29,6 @@ import cats.effect.implicits.*
 import cats.effect.kernel.Async
 import cats.syntax.all.*
 
-import scala.util.Random
 import scala.Vector as ScalaVector
 
 private[thylacine] trait HookeAndJeevesEngine[F[_]] extends ModelParameterOptimizer[F] {
@@ -42,6 +41,8 @@ private[thylacine] trait HookeAndJeevesEngine[F[_]] extends ModelParameterOptimi
   protected def iterationUpdateCallback: OptimisationTelemetryUpdate => F[Unit]
 
   protected def isConvergedCallback: Unit => F[Unit]
+
+  protected def maxIterations: Int = 10000
 
   private def findMaxDimensionalDifference(input: List[Vector[Double]]): Double =
     input.tail
@@ -86,21 +87,22 @@ private[thylacine] trait HookeAndJeevesEngine[F[_]] extends ModelParameterOptimi
     startingPoint: ScalaVector[Double],
     startingLogPdf: Double
   ): F[(Double, ScalaVector[Double])] =
-    Random
+    MathOps
       .shuffle(startingPoint.indices.toList)
       .foldLeft(Async[F].pure((startingLogPdf, startingPoint))) { case (previousF, testIndex) =>
         previousF.flatMap { case previous @ (_, currentArgMax) =>
           List(-nudgeAmount, nudgeAmount)
             .traverse(nudgeAndEvaluate(testIndex, _, currentArgMax))
             .map { results =>
-              (previous +: Random.shuffle(results)).maxBy(_._1)
+              (previous +: MathOps.shuffle(results)).maxBy(_._1)
             }
         }
       }
 
   private def calculateNextLogPdf(
     currentScale: Double,
-    currentBest: (Double, ScalaVector[Double])
+    currentBest: (Double, ScalaVector[Double]),
+    iteration: Int = 0
   ): F[(Double, ScalaVector[Double])] =
     (for {
       scanResult <-
@@ -128,8 +130,10 @@ private[thylacine] trait HookeAndJeevesEngine[F[_]] extends ModelParameterOptimi
                              )
                            )
     } yield (scaleAndConverged._1, scanResult, scaleAndConverged._2)).flatMap {
+      case (_, _, _) if iteration >= maxIterations =>
+        Async[F].pure(currentBest)
       case (scale, result, isConverged) if !isConverged =>
-        calculateNextLogPdf(scale, result)
+        calculateNextLogPdf(scale, result, iteration + 1)
       case _ =>
         Async[F].pure(currentBest)
     }
