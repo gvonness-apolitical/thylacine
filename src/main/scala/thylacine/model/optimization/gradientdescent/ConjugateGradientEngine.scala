@@ -55,12 +55,16 @@ trait ConjugateGradientEngine[F[_]] extends ModelParameterOptimizer[F] with Gold
       negativeGradientLogPdfVector     <- Async[F].delay(modelParameterCollectionToVectorValues(negativeGradientLogPdf))
       previousGradientMagnitudeSquared <- Async[F].delay(previousGradient.magnitudeSquared)
       newBeta <- Async[F].delay {
-                   Math.max(
-                     negativeGradientLogPdfVector
-                       .subtract(previousGradient)
-                       .dotProductWith(negativeGradientLogPdfVector) / previousGradientMagnitudeSquared,
-                     0
-                   )
+                   if (previousGradientMagnitudeSquared < 1e-30) {
+                     0.0 // Restart as steepest descent when gradient magnitude is near zero
+                   } else {
+                     Math.max(
+                       negativeGradientLogPdfVector
+                         .subtract(previousGradient)
+                         .dotProductWith(negativeGradientLogPdfVector) / previousGradientMagnitudeSquared,
+                       0
+                     )
+                   }
                  }
       newDirection <-
         Async[F].delay(negativeGradientLogPdfVector.add(previousSearchDirection.scalarMultiplyWith(newBeta)))

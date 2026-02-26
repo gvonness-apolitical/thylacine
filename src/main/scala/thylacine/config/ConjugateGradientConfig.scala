@@ -22,4 +22,6 @@ case class ConjugateGradientConfig(
   goldenSectionTolerance: Double,
   lineProbeExpansionFactor: Double,
   minimumNumberOfIterations: Int
-)
+) {
+  require(goldenSectionTolerance > 0, s"goldenSectionTolerance must be > 0, got $goldenSectionTolerance")
+}

@@ -20,12 +20,11 @@ package thylacine.model.optimization.line
 import thylacine.model.core.AsyncImplicits
 import thylacine.model.core.values.modelparameters.{ ModelParameterContext, ModelParameterPdf }
 import thylacine.model.optimization.line.GoldenSectionSearch.{ inversePhi, inversePhiSquared }
+import thylacine.util.MathOps
 import thylacine.util.ScalaVectorOps.Implicits.*
 
 import cats.effect.kernel.Async
 import cats.syntax.all.*
-
-import scala.util.Random
 
 private[thylacine] trait GoldenSectionSearch[F[_]] extends LineProbe[F] with LineSearch[F] {
   this: AsyncImplicits[F] & ModelParameterPdf[F] & ModelParameterContext =>
@@ -38,7 +37,7 @@ private[thylacine] trait GoldenSectionSearch[F[_]] extends LineProbe[F] with Lin
     endPointEvaluation: (Double, Vector[Double])
   ): F[(Double, Vector[Double])] = {
     val bestNew: (Double, Vector[Double]) = if (startPointEvaluation._1 == endPointEvaluation._1) {
-      Random.shuffle(List(startPointEvaluation, endPointEvaluation)).maxBy(_._1)
+      MathOps.shuffle(List(startPointEvaluation, endPointEvaluation)).maxBy(_._1)
     } else {
       List(startPointEvaluation, endPointEvaluation).maxBy(_._1)
     }
@@ -54,36 +53,42 @@ private[thylacine] trait GoldenSectionSearch[F[_]] extends LineProbe[F] with Lin
     startPointEvaluation: (Double, Vector[Double]),
     direction: Vector[Double],
     probeDifferential: Double,
-    directionNormalised: Boolean = false
+    directionNormalised: Boolean = false,
+    depth: Int = 0
   ): F[(Double, Vector[Double])] = {
-    val normalisedDirection =
-      if (directionNormalised) {
-        direction
-      } else {
-        direction.scalarMultiplyWith(1.0 / direction.magnitude)
+    if (depth >= 50 || probeDifferential.isInfinite || probeDifferential.isNaN) {
+      Async[F].pure(startPointEvaluation)
+    } else {
+      val normalisedDirection =
+        if (directionNormalised) {
+          direction
+        } else {
+          direction.scalarMultiplyWith(1.0 / direction.magnitude)
+        }
+
+      val forwardPoint = startPointEvaluation._2.add(normalisedDirection.scalarMultiplyWith(probeDifferential))
+      val reversePoint = startPointEvaluation._2.add(normalisedDirection.scalarMultiplyWith(-probeDifferential))
+
+      (for {
+        forwardPointResult <- logPdfAt(vectorValuesToModelParameterCollection(forwardPoint))
+        reversePointResult <- logPdfAt(vectorValuesToModelParameterCollection(reversePoint))
+      } yield (forwardPointResult, reversePointResult)).flatMap {
+        case (forwardPointResult, reversePointResult)
+            if forwardPointResult == reversePointResult && startPointEvaluation._1 == forwardPointResult =>
+          exploreLine(
+            startPointEvaluation,
+            normalisedDirection,
+            probeDifferential * lineProbeExpansionFactor,
+            directionNormalised = true,
+            depth = depth + 1
+          )
+        case (forwardPointResult, reversePointResult) =>
+          searchColinearTriple(
+            startPointEvaluation = (reversePointResult, reversePoint),
+            midPointEvaluation   = startPointEvaluation,
+            endPointEvaluation   = (forwardPointResult, forwardPoint)
+          )
       }
-
-    val forwardPoint = startPointEvaluation._2.add(normalisedDirection.scalarMultiplyWith(probeDifferential))
-    val reversePoint = startPointEvaluation._2.add(normalisedDirection.scalarMultiplyWith(-probeDifferential))
-
-    (for {
-      forwardPointResult <- logPdfAt(vectorValuesToModelParameterCollection(forwardPoint))
-      reversePointResult <- logPdfAt(vectorValuesToModelParameterCollection(reversePoint))
-    } yield (forwardPointResult, reversePointResult)).flatMap {
-      case (forwardPointResult, reversePointResult)
-          if forwardPointResult == reversePointResult && startPointEvaluation._1 == forwardPointResult =>
-        exploreLine(
-          startPointEvaluation,
-          normalisedDirection,
-          probeDifferential * lineProbeExpansionFactor,
-          directionNormalised = true
-        )
-      case (forwardPointResult, reversePointResult) =>
-        searchColinearTriple(
-          startPointEvaluation = (reversePointResult, reversePoint),
-          midPointEvaluation   = startPointEvaluation,
-          endPointEvaluation   = (forwardPointResult, forwardPoint)
-        )
     }
   }
 

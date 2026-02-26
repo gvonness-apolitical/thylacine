@@ -21,11 +21,11 @@ import thylacine.model.components.posterior.Posterior
 import thylacine.model.components.prior.Prior
 import thylacine.model.core.AsyncImplicits
 import thylacine.model.optimization.line.GoldenSectionSearch
+import thylacine.util.MathOps
 
 import cats.effect.kernel.Async
 import cats.syntax.all.*
 
-import scala.util.Random
 import scala.Vector as ScalaVector
 
 // Modification of standard Hooke and Jeeves to leverage
@@ -43,7 +43,7 @@ private[thylacine] trait CoordinateSlideEngine[F[_]] extends HookeAndJeevesEngin
     startingPoint: ScalaVector[Double],
     startingLogPdf: Double
   ): F[(Double, ScalaVector[Double])] =
-    Random
+    MathOps
       .shuffle(startingPoint.indices.toList)
       .foldLeft(Async[F].pure((startingLogPdf, startingPoint))) { case (previousF, testIndex) =>
         previousF.flatMap { case previous @ (_, currentArgMax) =>
