@@ -55,6 +55,26 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
   protected def epsilonRef: Ref[F, Double]
   protected def daLogEpsilonBarRef: Ref[F, Double]
 
+  private case class HmcmcSimulationState(
+    input: ModelParameterCollection,
+    logPdfOpt: Option[Double]                       = None,
+    gradLogPdfOpt: Option[ModelParameterCollection] = None,
+    iterationCount: Int,
+    samples: Vector[ModelParameterCollection] = Vector()
+  )
+
+  private case class HmcmcAcceptanceTracking(
+    jumpAcceptances: Int = 0,
+    jumpAttempts: Int    = 0
+  )
+
+  private case class DualAveragingState(
+    hBar: Double          = 0.0,
+    logEpsilonBar: Double = 0.0,
+    mu: Double            = 0.0,
+    stepCount: Int        = 0
+  )
+
   /*
    * - - -- --- ----- -------- -------------
    * HMCMC
@@ -179,51 +199,34 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
   private val daT0: Double    = 10.0
   private val daKappa: Double = 0.75
 
-  // Dual averaging state: (hBar, logEpsilonBar, mu, stepCount)
-  // hBar: running average of (delta - alpha)
-  // logEpsilonBar: smoothed log-epsilon (final value after burn-in)
-  // mu: log(10 * epsilon_0)
-  // stepCount: number of adaptation steps taken
   private def updateDualAveraging(
-    hBar: Double,
-    logEpsilonBar: Double,
-    mu: Double,
-    stepCount: Int,
+    daState: DualAveragingState,
     acceptProb: Double
-  ): (Double, Double, Double) = {
-    val m         = stepCount.toDouble
-    val newHBar   = (1.0 - 1.0 / (m + daT0)) * hBar + (1.0 / (m + daT0)) * (targetAcceptanceRate - acceptProb)
-    val logEps    = mu - Math.sqrt(m) / daGamma * newHBar
-    val newLogBar = Math.pow(m, -daKappa) * logEps + (1.0 - Math.pow(m, -daKappa)) * logEpsilonBar
-    (newHBar, newLogBar, logEps)
+  ): (DualAveragingState, Double) = {
+    val m         = daState.stepCount.toDouble
+    val newHBar   = (1.0 - 1.0 / (m + daT0)) * daState.hBar + (1.0 / (m + daT0)) * (targetAcceptanceRate - acceptProb)
+    val logEps    = daState.mu - Math.sqrt(m) / daGamma * newHBar
+    val newLogBar = Math.pow(m, -daKappa) * logEps + (1.0 - Math.pow(m, -daKappa)) * daState.logEpsilonBar
+    (daState.copy(hBar = newHBar, logEpsilonBar = newLogBar), logEps)
   }
 
   private def runDynamicSimulationFrom(
-    input: ModelParameterCollection,
+    state: HmcmcSimulationState,
     maxIterations: Int,
-    logPdfOpt: Option[Double]                       = None,
-    gradLogPdfOpt: Option[ModelParameterCollection] = None,
-    burnIn: Boolean                                 = false,
-    iterationCount: Int,
     numberOfRequestedSamples: Int,
-    jumpAcceptances: Int                      = 0,
-    jumpAttempts: Int                         = 0,
-    samples: Vector[ModelParameterCollection] = Vector(),
-    // Dual averaging state (only used during burn-in with adaptStepSize=true)
-    daHBar: Double          = 0.0,
-    daLogEpsilonBar: Double = 0.0,
-    daMu: Double            = 0.0,
-    daStepCount: Int        = 0
+    burnIn: Boolean                   = false,
+    tracking: HmcmcAcceptanceTracking = HmcmcAcceptanceTracking(),
+    daState: DualAveragingState       = DualAveragingState()
   ): F[Vector[ModelParameterCollection]] = {
     val simulationSpec: F[Vector[ModelParameterCollection]] = (for {
       epsilon <- epsilonRef.get
-      negLogPdf <- logPdfOpt match {
+      negLogPdf <- state.logPdfOpt match {
                      case Some(res) => Async[F].pure(res)
-                     case _ => logPdfAt(input).map(_ * -1)
+                     case _ => logPdfAt(state.input).map(_ * -1)
                    }
-      gradNegLogPdf <- gradLogPdfOpt match {
+      gradNegLogPdf <- state.gradLogPdfOpt match {
                          case Some(res) => Async[F].pure(res)
-                         case _ => logPdfGradientAt(input).map(_.rawScalarMultiplyWith(-1))
+                         case _ => logPdfGradientAt(state.input).map(_.rawScalarMultiplyWith(-1))
                        }
       // Sample momentum: p_i ~ N(0, M_ii). With unit mass: p_i ~ N(0, 1).
       p <- Async[F].delay(massMatrixDiagonal match {
@@ -231,84 +234,74 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
              case None => VectorContainer.random(domainDimension)
            })
       hamiltonian    <- Async[F].delay(getHamiltonianValue(p, negLogPdf))
-      leapfrogResult <- runLeapfrogAt(input, p, gradNegLogPdf, epsilon)
+      leapfrogResult <- runLeapfrogAt(state.input, p, gradNegLogPdf, epsilon)
       (xNew, pNew, gradAtXNew) = leapfrogResult
       eNew       <- logPdfAt(xNew).map(_ * -1)
       hNew       <- Async[F].delay(getHamiltonianValue(pNew, eNew))
       dH         <- Async[F].delay(hNew - hamiltonian)
       acceptProb <- Async[F].delay(Math.min(1.0, Math.exp(-dH)))
-      _ <- Async[F].ifM(Async[F].pure(burnIn || jumpAttempts <= 0))(
+      _ <- Async[F].ifM(Async[F].pure(burnIn || tracking.jumpAttempts <= 0))(
              Async[F].unit,
              telemetryUpdateCallback(
                HmcmcTelemetryUpdate(
-                 samplesRemaining        = numberOfRequestedSamples - samples.size,
-                 jumpAttempts            = jumpAttempts,
-                 jumpAcceptances         = jumpAcceptances,
+                 samplesRemaining        = numberOfRequestedSamples - state.samples.size,
+                 jumpAttempts            = tracking.jumpAttempts,
+                 jumpAcceptances         = tracking.jumpAcceptances,
                  hamiltonianDifferential = Option(dH)
                )
              ).start.void
            )
       accepted <- Async[F].delay(dH < 0 || MathOps.nextDouble < Math.exp(-dH))
       result <- Async[F].ifM(Async[F].pure(accepted))(
-                  Async[F].pure((xNew, eNew, gradAtXNew, jumpAcceptances + 1, jumpAttempts + 1)),
-                  Async[F].delay((input, negLogPdf, gradNegLogPdf, jumpAcceptances, jumpAttempts + 1))
+                  Async[F].pure((xNew, eNew, gradAtXNew, tracking.jumpAcceptances + 1, tracking.jumpAttempts + 1)),
+                  Async[F].delay(
+                    (state.input, negLogPdf, gradNegLogPdf, tracking.jumpAcceptances, tracking.jumpAttempts + 1)
+                  )
                 )
       // Dual averaging update during burn-in
-      daState <- if (burnIn && adaptStepSize) {
-                   val newStep = daStepCount + 1
-                   val (newHBar, newLogBar, logEps) =
-                     updateDualAveraging(daHBar, daLogEpsilonBar, daMu, newStep, acceptProb)
-                   for {
-                     _ <- epsilonRef.set(Math.exp(logEps))
-                     _ <- daLogEpsilonBarRef.set(newLogBar)
-                   } yield (newHBar, newLogBar, daMu, newStep)
-                 } else {
-                   Async[F].pure((daHBar, daLogEpsilonBar, daMu, daStepCount))
-                 }
-    } yield (result, daState)).flatMap {
-      case ((xNew, eNew, gNew, acceptances, attempts), (newHBar, newLogBar, newMu, newStepCount)) =>
-        runDynamicSimulationFrom(
-          input                    = xNew,
-          maxIterations            = maxIterations,
-          logPdfOpt                = Option(eNew),
-          gradLogPdfOpt            = Option(gNew),
-          burnIn                   = burnIn,
-          iterationCount           = iterationCount + 1,
-          numberOfRequestedSamples = numberOfRequestedSamples,
-          jumpAcceptances          = acceptances,
-          jumpAttempts             = attempts,
-          samples                  = samples,
-          daHBar                   = newHBar,
-          daLogEpsilonBar          = newLogBar,
-          daMu                     = newMu,
-          daStepCount              = newStepCount
-        )
+      newDaState <- if (burnIn && adaptStepSize) {
+                      val stepped           = daState.copy(stepCount = daState.stepCount + 1)
+                      val (updated, logEps) = updateDualAveraging(stepped, acceptProb)
+                      for {
+                        _ <- epsilonRef.set(Math.exp(logEps))
+                        _ <- daLogEpsilonBarRef.set(updated.logEpsilonBar)
+                      } yield updated
+                    } else {
+                      Async[F].pure(daState)
+                    }
+    } yield (result, newDaState)).flatMap { case ((xNew, eNew, gNew, acceptances, attempts), updatedDaState) =>
+      runDynamicSimulationFrom(
+        state = HmcmcSimulationState(
+          input          = xNew,
+          logPdfOpt      = Option(eNew),
+          gradLogPdfOpt  = Option(gNew),
+          iterationCount = state.iterationCount + 1,
+          samples        = state.samples
+        ),
+        maxIterations            = maxIterations,
+        numberOfRequestedSamples = numberOfRequestedSamples,
+        burnIn                   = burnIn,
+        tracking                 = HmcmcAcceptanceTracking(acceptances, attempts),
+        daState                  = updatedDaState
+      )
     }
 
     val sampleAppendSpec: F[Vector[ModelParameterCollection]] =
-      Async[F].delay(samples :+ input).flatMap { newSamples =>
+      Async[F].delay(state.samples :+ state.input).flatMap { newSamples =>
         Async[F].ifM(Async[F].pure(newSamples.size >= numberOfRequestedSamples || burnIn))(
           Async[F].pure(newSamples),
           runDynamicSimulationFrom(
-            input                    = input,
+            state                    = state.copy(iterationCount = 0, samples = newSamples),
             maxIterations            = maxIterations,
-            logPdfOpt                = logPdfOpt,
-            gradLogPdfOpt            = gradLogPdfOpt,
-            burnIn                   = burnIn,
-            iterationCount           = 0,
             numberOfRequestedSamples = numberOfRequestedSamples,
-            jumpAcceptances          = jumpAcceptances,
-            jumpAttempts             = jumpAttempts,
-            samples                  = newSamples,
-            daHBar                   = daHBar,
-            daLogEpsilonBar          = daLogEpsilonBar,
-            daMu                     = daMu,
-            daStepCount              = daStepCount
+            burnIn                   = burnIn,
+            tracking                 = tracking,
+            daState                  = daState
           )
         )
       }
 
-    Async[F].ifM(Async[F].delay(iterationCount <= maxIterations))(
+    Async[F].ifM(Async[F].delay(state.iterationCount <= maxIterations))(
       simulationSpec,
       sampleAppendSpec
     )
@@ -333,13 +326,17 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
       mu = Math.log(10.0 * simulationEpsilon)
       _ <- daLogEpsilonBarRef.set(Math.log(simulationEpsilon))
       results <- runDynamicSimulationFrom(
-                   input                    = priorSample,
+                   state = HmcmcSimulationState(
+                     input          = priorSample,
+                     iterationCount = 0
+                   ),
                    maxIterations            = warmUpSimulationCount,
-                   burnIn                   = true,
                    numberOfRequestedSamples = 1,
-                   iterationCount           = 0,
-                   daMu                     = mu,
-                   daLogEpsilonBar          = Math.log(simulationEpsilon)
+                   burnIn                   = true,
+                   daState = DualAveragingState(
+                     mu            = mu,
+                     logEpsilonBar = Math.log(simulationEpsilon)
+                   )
                  )
       // After burn-in with adaptation, fix epsilon to the smoothed bar value
       _ <- if (adaptStepSize) {
@@ -368,10 +365,12 @@ private[thylacine] trait HmcmcEngine[F[_]] extends ModelParameterSampler[F] {
     for {
       startPt <- getOrRunBurnIn
       results <- runDynamicSimulationFrom(
-                   input                    = startPt,
+                   state = HmcmcSimulationState(
+                     input          = startPt,
+                     iterationCount = 0
+                   ),
                    maxIterations            = simulationsBetweenSamples,
-                   numberOfRequestedSamples = numberOfSamples,
-                   iterationCount           = 0
+                   numberOfRequestedSamples = numberOfSamples
                  )
     } yield results
 

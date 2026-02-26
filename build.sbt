@@ -37,5 +37,6 @@ lazy val thylacine = (project in file("."))
       DependencyVersions.scala2p13Version,
       DependencyVersions.scala3Version
     ),
-    Test / parallelExecution := false
+    Test / parallelExecution := false,
+    Test / fork              := true
   )

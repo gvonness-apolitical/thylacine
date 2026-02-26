@@ -1,2 +1,3 @@
-addSbtPlugin("org.jetbrains" % "sbt-ide-settings" % "1.1.0")
-addSbtPlugin("org.typelevel" % "sbt-typelevel"    % "0.8.4")
+addSbtPlugin("org.jetbrains"    % "sbt-ide-settings"     % "1.1.0")
+addSbtPlugin("org.typelevel"    % "sbt-typelevel"        % "0.8.4")
+addSbtPlugin("net.vonbuchholtz" % "sbt-dependency-check" % "5.0.0")

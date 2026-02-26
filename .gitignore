@@ -5,10 +5,4 @@ target
 /.project
 /.settings
 /.bsp
-/src/main/results/*.numbers
-/src/main/results/*.xlsx
-/src/main/results/*/*.png
-/doc/*.aux
-/doc/*.log
-/doc/*.synctex.gz
 /.claude
