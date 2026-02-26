@@ -13,7 +13,7 @@ ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21"))
 
 scalaVersion                    := DependencyVersions.scala2p13Version
 ThisBuild / crossScalaVersions  := Seq(DependencyVersions.scala2p13Version, DependencyVersions.scala3Version)
-ThisBuild / tlVersionIntroduced := Map("3" -> "0.14")
+ThisBuild / tlVersionIntroduced := Map("2.13" -> "0.15", "3" -> "0.15")
 
 Global / idePackagePrefix := Some("ai.entrolution")
 Global / excludeLintKeys += idePackagePrefix
