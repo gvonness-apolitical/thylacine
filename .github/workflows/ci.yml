@@ -58,18 +58,18 @@ jobs:
         run: sbt githubWorkflowCheck
 
       - name: Check headers and formatting
-        if: matrix.java == 'temurin@21' && matrix.os == 'ubuntu-22.04'
+        if: matrix.java == 'temurin@21' && matrix.os == 'blacksmith-4vcpu-ubuntu-2204'
         run: sbt '++ ${{ matrix.scala }}' headerCheckAll scalafmtCheckAll 'project /' scalafmtSbtCheck
 
       - name: Test
         run: sbt '++ ${{ matrix.scala }}' test
 
       - name: Check binary compatibility
-        if: matrix.java == 'temurin@21' && matrix.os == 'ubuntu-22.04'
+        if: matrix.java == 'temurin@21' && matrix.os == 'blacksmith-4vcpu-ubuntu-2204'
         run: sbt '++ ${{ matrix.scala }}' mimaReportBinaryIssues
 
       - name: Generate API documentation
-        if: matrix.java == 'temurin@21' && matrix.os == 'ubuntu-22.04'
+        if: matrix.java == 'temurin@21' && matrix.os == 'blacksmith-4vcpu-ubuntu-2204'
         run: sbt '++ ${{ matrix.scala }}' doc
 
       - name: Make target directories
@@ -167,7 +167,7 @@ jobs:
     if: github.event.repository.fork == false && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os: [blacksmith-4vcpu-ubuntu-2204]
+        os: [ubuntu-22.04]
         java: [temurin@21]
     runs-on: ${{ matrix.os }}
     steps:
