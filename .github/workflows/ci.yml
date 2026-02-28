@@ -27,7 +27,7 @@ jobs:
     name: Test
     strategy:
       matrix:
-        os: [ubuntu-22.04]
+        os: [blacksmith-4vcpu-ubuntu-2204]
         scala: [2.13, 3]
         java: [temurin@21]
     runs-on: ${{ matrix.os }}
@@ -93,7 +93,7 @@ jobs:
     if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
     strategy:
       matrix:
-        os: [ubuntu-22.04]
+        os: [blacksmith-4vcpu-ubuntu-2204]
         java: [temurin@21]
     runs-on: ${{ matrix.os }}
     steps:
@@ -167,7 +167,7 @@ jobs:
     if: github.event.repository.fork == false && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os: [ubuntu-22.04]
+        os: [blacksmith-4vcpu-ubuntu-2204]
         java: [temurin@21]
     runs-on: ${{ matrix.os }}
     steps:
