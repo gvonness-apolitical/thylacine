@@ -10,7 +10,7 @@ ThisBuild / developers ++= List(
 
 // CI configuration - Java 21 required for Smile 3.x
 ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21"))
-ThisBuild / githubWorkflowOSes         := Seq("blacksmith-4vcpu-ubuntu-2204")
+ThisBuild / githubWorkflowOSes         := Seq("blacksmith-2vcpu-ubuntu-2204")
 
 scalaVersion                    := DependencyVersions.scala2p13Version
 ThisBuild / crossScalaVersions  := Seq(DependencyVersions.scala2p13Version, DependencyVersions.scala3Version)
